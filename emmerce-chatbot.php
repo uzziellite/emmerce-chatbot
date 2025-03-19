@@ -19,7 +19,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-
 final class EmmerceChatBot {
     /**
      * Setup the chatbot
@@ -30,6 +29,9 @@ final class EmmerceChatBot {
     public static function init() {
         add_action('wp_enqueue_scripts', [__CLASS__, 'emmerce_chatbot_enqueue_scripts']);
         add_action('wp_footer', [__CLASS__, 'emmerce_chatbot_inject_container']);
+        add_action('admin_menu', [__CLASS__, 'emmerce_chatbot_admin_menu']);
+        add_action('admin_init', [__CLASS__, 'emmerce_chatbot_register_settings']);
+        add_action('admin_enqueue_scripts', [__CLASS__, 'emmerce_chatbot_enqueue_admin_styles']);
     }
 
     /**
@@ -39,54 +41,208 @@ final class EmmerceChatBot {
      * @return void
      */
     public static function emmerce_chatbot_enqueue_scripts() {
-        wp_enqueue_script(
-            'emmerce-chatbot-js',
-            plugin_dir_url(__FILE__) . 'dist/assets/index-CmHvqjyk.js',
-            array(),
-            '1.0.0',
-            true
-        );
+        $active = esc_attr(get_option('emmerce_chat_active', '1'));
+        if($active === '1') {
+            wp_enqueue_script(
+                'emmerce-chatbot-js',
+                plugin_dir_url(__FILE__) . 'dist/assets/index-CmHvqjyk.js',
+                array(),
+                '1.0.0',
+                true
+            );
     
-        add_filter('script_loader_tag', function ($tag, $handle) {
-            if ('emmerce-chatbot-js' === $handle) {
-                $tag = str_replace(' src=', ' defer src=', $tag);
-            }
-            return $tag;
-        }, 10, 2);
+            add_filter('script_loader_tag', function ($tag, $handle) {
+                if ('emmerce-chatbot-js' === $handle) {
+                    $tag = str_replace(' src=', ' defer src=', $tag);
+                }
+                return $tag;
+            }, 10, 2);
     
-        wp_enqueue_style(
-            'emmerce-chatbot-css',
-            plugin_dir_url(__FILE__) . 'dist/assets/index-CuhENZM8.css',
-            array(),
-            '1.0.0'
-        );
+            wp_enqueue_style(
+                'emmerce-chatbot-css',
+                plugin_dir_url(__FILE__) . 'dist/assets/index-CuhENZM8.css',
+                array(),
+                '1.0.0'
+            );
     
-        add_filter('style_loader_tag', function ($tag, $handle) {
-            if ('emmerce-chatbot-css' === $handle) {
-                $tag = str_replace('rel="stylesheet"', 'rel="preload" as="style" onload="this.onload=null;this.rel=\'stylesheet\'"', $tag);
-            }
-            return $tag;
-        }, 10, 2);
+            add_filter('style_loader_tag', function ($tag, $handle) {
+                if ('emmerce-chatbot-css' === $handle) {
+                    $tag = str_replace('rel="stylesheet"', 'rel="preload" as="style" onload="this.onload=null;this.rel=\'stylesheet\'"', $tag);
+                }
+                return $tag;
+            }, 10, 2);
     
-        wp_localize_script(
-            'emmerce-chatbot-js',
-            'wpChatbot',
-            [
-                'apiUrl' => 'http://your-django-backend.com/api',
-                'wsUrl' => 'ws://your-django-backend.com/ws/chat/',
-            ]
-        );
+            wp_localize_script(
+                'emmerce-chatbot-js',
+                'wpChatbot',
+                [
+                    'apiUrl' => 'http://your-django-backend.com/api',
+                    'wsUrl' => 'ws://your-django-backend.com/ws/chat/',
+                    'position' => esc_attr(get_option('emmerce_chat_position', 'right'))
+                ]
+            );
+        }
     }
 
     /**
      * Inject the chatbot container after the page has loaded.
      *
-     * @since 1.0.1
+     * @since 1.0.0
      * @return void
      */
     public static function emmerce_chatbot_inject_container() {
-        echo '<div id="emmerce-chatbot-root"></div>';
+        $active = esc_attr(get_option('emmerce_chat_active', '1'));
+        if($active === '1'){
+            echo '<div id="emmerce-chatbot-root"></div>';
+        }
     }
+
+    /**
+     * Add admin menu for chatbot settings.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_chatbot_admin_menu() {
+        add_menu_page(
+            'Emmerce Chat Settings',
+            'Emmerce Chat',
+            'manage_options',
+            'emmerce-chatbot-settings',
+            [__CLASS__, 'emmerce_chatbot_settings_page'],
+            'dashicons-format-chat',
+            20
+        );
+    }
+
+    /**
+     * Render the settings page.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_chatbot_settings_page() {
+        ?>
+        <div class="wrap">
+            <h1>Emmerce Chat Settings</h1>
+            <p>Emmerce Chat adds a chat widget to your website to help manage all your website chats together with your conversations from other platforms (Facebook, Whatsapp, Instagram...) from the Emmerce customer portal.</p>
+            <form method="post" action="options.php">
+                <?php
+                settings_fields('emmerce_chatbot_settings_group');
+                do_settings_sections('emmerce-chatbot-settings');
+                submit_button();
+                ?>
+            </form>
+        </div>
+        <?php
+    }
+
+    /**
+     * Register settings.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_chatbot_register_settings() {
+        register_setting('emmerce_chatbot_settings_group', 'emmerce_username');
+        register_setting('emmerce_chatbot_settings_group', 'emmerce_password');
+        add_settings_section('emmerce_api_settings', 'API Credentials', [__CLASS__, 'emmerce_api_settings_callback'], 'emmerce-chatbot-settings');
+        add_settings_field('emmerce_username', 'Username', [__CLASS__, 'emmerce_username_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+        add_settings_field('emmerce_password', 'Password', [__CLASS__, 'emmerce_password_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+
+        register_setting('emmerce_chatbot_settings_group', 'emmerce_chat_position', 'sanitize_text_field');
+        register_setting('emmerce_chatbot_settings_group', 'emmerce_chat_active', 'sanitize_text_field');
+
+        add_settings_section('emmerce_widget_settings', 'Chat Widget Settings', [__CLASS__, 'emmerce_widget_settings_callback'], 'emmerce-chatbot-settings');
+        add_settings_field('emmerce_chat_position', 'Chat Floater Position', [__CLASS__, 'emmerce_chat_position_callback'], 'emmerce-chatbot-settings', 'emmerce_widget_settings');
+        add_settings_field('emmerce_chat_active', 'Activate/Deactivate Chat', [__CLASS__, 'emmerce_chat_active_callback'], 'emmerce-chatbot-settings', 'emmerce_widget_settings');
+    }
+
+    /**
+     * API settings callback.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_api_settings_callback() {
+        echo '<p>Enter your Emmerce API credentials below.</p>';
+    }
+
+    /**
+     * Username callback.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_username_callback() {
+        $username = esc_attr(get_option('emmerce_username'));
+        echo "<input type='text' name='emmerce_username' value='$username' />";
+    }
+
+    /**
+     * Password callback.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_password_callback() {
+        $password = esc_attr(get_option('emmerce_password'));
+        echo "<input type='password' name='emmerce_password' value='$password' />";
+    }
+
+    /**
+     * Widget settings callback.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_widget_settings_callback() {
+        echo '<p>Configure the chat widget appearance.</p>';
+    }
+
+    /**
+     * Chat position callback.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_chat_position_callback() {
+        $position = esc_attr(get_option('emmerce_chat_position', 'right'));
+        echo "<select name='emmerce_chat_position'>";
+        echo "<option value='right' " . selected($position, 'right', false) . ">Right</option>";
+        echo "<option value='left' " . selected($position, 'left', false) . ">Left</option>";
+        echo "</select>";
+    }
+
+    /**
+     * Chat active callback.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_chat_active_callback() {
+        $active = esc_attr(get_option('emmerce_chat_active', '1'));
+        echo "<label class='switch'>";
+        echo "<input type='checkbox' name='emmerce_chat_active' value='1' " . checked($active, '1', false) . ">";
+        echo "<span class='slider round'></span>";
+        echo "</label>";
+    }
+
+    /**
+     * Enqueue admin styles.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_chatbot_enqueue_admin_styles() {
+        wp_enqueue_style(
+            'emmerce-chatbot-admin-css',
+            plugin_dir_url(__FILE__) . 'src/admin-style.css',
+            array(),
+            '1.0.0'
+        );
+    }
+
 }
 
 EmmerceChatBot::init();
