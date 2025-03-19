@@ -129,6 +129,9 @@ final class EmmerceChatBot {
      * @return void
      */
     public static function emmerce_chatbot_settings_page() {
+        $access_token = get_option('emmerce_access_token');
+        $refresh_token = get_option('emmerce_refresh_token');
+
         ?>
         <div class="wrap">
             <h1>Emmerce Chat Settings</h1>
@@ -137,6 +140,15 @@ final class EmmerceChatBot {
                 <?php
                 settings_fields('emmerce_chatbot_settings_group');
                 do_settings_sections('emmerce-chatbot-settings');
+
+                if (empty($access_token) || empty($refresh_token)) {
+                    add_settings_field('emmerce_username', 'Username', [__CLASS__, 'emmerce_username_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+                    add_settings_field('emmerce_password', 'Password', [__CLASS__, 'emmerce_password_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+                } else {
+                    add_settings_field('emmerce_access_token_display', 'Access Token', [__CLASS__, 'emmerce_access_token_display_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+                    add_settings_field('emmerce_refresh_token_display', 'Refresh Token', [__CLASS__, 'emmerce_refresh_token_display_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+                }
+
                 submit_button();
                 ?>
             </form>
@@ -152,9 +164,18 @@ final class EmmerceChatBot {
      */
     public static function emmerce_chatbot_register_settings() {
         register_setting('emmerce_chatbot_settings_group', 'emmerce_username', [__CLASS__, 'fetch_access_token_on_save']);
+
         add_settings_section('emmerce_api_settings', 'API Credentials', [__CLASS__, 'emmerce_api_settings_callback'], 'emmerce-chatbot-settings');
-        add_settings_field('emmerce_username', 'Username', [__CLASS__, 'emmerce_username_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
-        add_settings_field('emmerce_password', 'Password', [__CLASS__, 'emmerce_password_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+
+        // Register these fields conditionally
+        if (get_option('emmerce_access_token') && get_option('emmerce_refresh_token')) {
+            add_settings_field('emmerce_access_token_display', 'Access Token', [__CLASS__, 'emmerce_access_token_display_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+            add_settings_field('emmerce_refresh_token_display', 'Refresh Token', [__CLASS__, 'emmerce_refresh_token_display_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+        } else {
+            add_settings_field('emmerce_username_display', 'Emmerce Portal Username', [__CLASS__, 'emmerce_username_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+            add_settings_field('emmerce_password_display', 'Emmerce Portal Password', [__CLASS__, 'emmerce_password_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
+        }
+
         register_setting('emmerce_chatbot_settings_group', 'emmerce_chat_position', 'sanitize_text_field');
         register_setting('emmerce_chatbot_settings_group', 'emmerce_chat_active', 'sanitize_text_field');
 
@@ -172,7 +193,14 @@ final class EmmerceChatBot {
      * @return void
      */
     public static function emmerce_api_settings_callback() {
-        echo '<p>Enter your Emmerce API credentials below.</p>';
+        $access_token = get_option('emmerce_access_token');
+        $refresh_token = get_option('emmerce_refresh_token');
+
+        if (!empty($access_token) && !empty($refresh_token)) {
+            echo '<p class="notice notice-success">Emmerce Chatbot is ready!</p>';
+        }else{
+            echo '<p class="notice notice-warning">Please complete your Emmerce Chatbot Configuration</p>';
+        }
     }
 
     /**
@@ -182,8 +210,7 @@ final class EmmerceChatBot {
      * @return void
      */
     public static function emmerce_username_callback() {
-        $username = esc_attr(get_option('emmerce_username'));
-        echo "<input type='text' name='emmerce_username' value='$username' />";
+        echo "<input type='text' name='emmerce_username' value='' />";
     }
 
     /**
@@ -194,7 +221,6 @@ final class EmmerceChatBot {
      */
     public static function emmerce_password_callback() {
         echo "<input type='password' name='emmerce_password' value='' />";
-        echo "<p class='description'>For security reasons, this field will not be saved!</p>";
     }
 
     /**
@@ -260,7 +286,7 @@ final class EmmerceChatBot {
         if (isset($_GET['emmerce_error']) && $_GET['emmerce_error']) {
             $error_message = sanitize_text_field(urldecode($_GET['emmerce_error']));
             echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($error_message) . '</p></div>';
-        } elseif (isset($_GET['settings-updated']) && $_GET['settings-updated']) {
+        } else if (isset($_GET['emmerce_success']) && $_GET['emmerce_success']) {
             echo '<div class="notice notice-success is-dismissible"><p>Settings successfully updated.</p></div>';
         }
     }
@@ -270,9 +296,16 @@ final class EmmerceChatBot {
      *
      * @since 1.0.0
      * @param string $username The username.
-     * @return string The username.
+     * @return void.
      */
     public static function fetch_access_token_on_save($username) {
+        $access_token = get_option('emmerce_access_token');
+        $refresh_token = get_option('emmerce_refresh_token');
+
+        if (!empty($access_token) && !empty($refresh_token)) {
+            return $username;
+        }
+
         $password = $_POST['emmerce_password'];
 
         $access_token_data = self::get_access_token_from_api($username, $password);
@@ -282,13 +315,14 @@ final class EmmerceChatBot {
             update_option('emmerce_refresh_token', $access_token_data['refresh_token']);
             update_option('emmerce_token_expiration', time() + 1744970113 - 1742378113);
             update_option('emmerce_refresh_expiration', time() + 1747562113 - 1742378113);
+
+            wp_redirect(add_query_arg('emmerce_success', 'Updated', admin_url('admin.php?page=emmerce-chatbot-settings')));
+            exit;
         } else {
             $error_message = urlencode("Failed to retrieve access token.");
             wp_redirect(add_query_arg('emmerce_error', $error_message, admin_url('admin.php?page=emmerce-chatbot-settings')));
             exit;
         }
-
-        return $username;
     }
 
     /**
@@ -364,6 +398,29 @@ final class EmmerceChatBot {
             return false;
         }
     }
+
+    /**
+     * Access token display callback.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_access_token_display_callback() {
+        $access_token = get_option('emmerce_access_token');
+        echo "<input type='text' value='" . esc_attr(substr($access_token, 0, 50)) . "...' readonly />";
+    }
+
+    /**
+     * Refresh token display callback.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_refresh_token_display_callback() {
+        $refresh_token = get_option('emmerce_refresh_token');
+        echo "<input type='text' value='" . esc_attr(substr($refresh_token, 0, 50)) . "...' readonly />";
+    }
+
 }
 
 EmmerceChatBot::init();
