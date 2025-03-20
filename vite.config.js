@@ -8,4 +8,19 @@ export default defineConfig({
         svelte(),
         tailwindcss()
     ],
-})
+    server: {
+        proxy: {
+                '/dist/assets': {
+                target: 'http://localhost:5173',
+                changeOrigin: true,
+                secure: false,
+            },
+        },
+    },
+    build: {
+        manifest: true,
+        rollupOptions: {
+          input: './src/main.js',
+        },
+    },
+});

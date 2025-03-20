@@ -32,10 +32,14 @@ final class EmmerceChatBot {
         add_action('admin_menu', [__CLASS__, 'emmerce_chatbot_admin_menu']);
         add_action('admin_init', [__CLASS__, 'emmerce_chatbot_register_settings']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'emmerce_chatbot_enqueue_admin_styles']);
+        add_action('wp_loaded', [__CLASS__, 'emmerce_register_ajax_endpoints']);
+        add_action('admin_notices', [__CLASS__, 'show_wp_debug_warning']);
     }
 
     /**
-     * Enqueue the chat scripts and styles
+     * Enqueue the chat scripts and styles depending on the mode the user is in
+     * If WP_DEBUG is enabled, it will load the development scripts meaning the dev
+     * server has to be active.
      *
      * @since 1.0.0
      * @return void
@@ -44,48 +48,76 @@ final class EmmerceChatBot {
         $active = esc_attr(get_option('emmerce_chat_active', '1'));
         if($active === '1') {
 
-            $access_token = esc_attr(get_option('emmerce_access_token'));
             $token_expiration = esc_attr(get_option('emmerce_token_expiration'));
 
             if (time() > $token_expiration) {
-                $access_token = self::refresh_access_token();
+                self::refresh_access_token();
             }
 
-            wp_enqueue_script(
-                'emmerce-chatbot-js',
-                plugin_dir_url(__FILE__) . 'dist/assets/index-CmHvqjyk.js',
-                array(),
-                '1.0.0',
-                true
-            );
-    
-            add_filter('script_loader_tag', function ($tag, $handle) {
-                if ('emmerce-chatbot-js' === $handle) {
-                    $tag = str_replace(' src=', ' defer src=', $tag);
+            if (WP_DEBUG) {
+                wp_enqueue_script(
+                    'emmerce-chatbot-js',
+                    'http://localhost:5173/src/main.js',
+                    array(),
+                    null,
+                    true
+                );
+
+                add_filter('script_loader_tag', function ($tag, $handle, $src) {
+                    if ('emmerce-chatbot-js' === $handle) {
+                        $tag = '<script type="module" src="' . esc_url($src) . '"></script>';
+                    }
+                    return $tag;
+                }, 10, 3);
+            } else {
+                $manifest_path = plugin_dir_path(__FILE__) . 'dist/.vite/manifest.json';
+                if (file_exists($manifest_path)) {
+                    $manifest = json_decode(file_get_contents($manifest_path), true);
+        
+                    if (isset($manifest['src/main.js'])) {
+                        $js_file = $manifest['src/main.js']['file'];
+                        $css_files = $manifest['src/main.js']['css'] ?? [];
+        
+                        wp_enqueue_script(
+                            'emmerce-chatbot-js',
+                            plugin_dir_url(__FILE__) . 'dist/' . $js_file,
+                            array(),
+                            null,
+                            true
+                        );
+        
+                        add_filter('script_loader_tag', function ($tag, $handle, $src) {
+                            if ('emmerce-chatbot-js' === $handle) {
+                                $tag = '<script type="module" defer src="' . esc_url($src) . '"></script>';
+                            }
+                            return $tag;
+                        }, 10, 3);
+        
+                        foreach ($css_files as $css_file) {
+                            wp_enqueue_style(
+                                'emmerce-chatbot-css-' . basename($css_file),
+                                plugin_dir_url(__FILE__) . 'dist/' . $css_file,
+                                array(),
+                                null
+                            );
+
+                            add_filter('style_loader_tag', function ($tag, $handle) {
+                                if ('emmerce-chatbot-css' === $handle) {
+                                    $tag = str_replace('rel="stylesheet"', 'rel="preload" as="style" onload="this.onload=null;this.rel=\'stylesheet\'"', $tag);
+                                }
+                                return $tag;
+                            }, 10, 2);
+                        }
+                    }
                 }
-                return $tag;
-            }, 10, 2);
-    
-            wp_enqueue_style(
-                'emmerce-chatbot-css',
-                plugin_dir_url(__FILE__) . 'dist/assets/index-CuhENZM8.css',
-                array(),
-                '1.0.0'
-            );
-    
-            add_filter('style_loader_tag', function ($tag, $handle) {
-                if ('emmerce-chatbot-css' === $handle) {
-                    $tag = str_replace('rel="stylesheet"', 'rel="preload" as="style" onload="this.onload=null;this.rel=\'stylesheet\'"', $tag);
-                }
-                return $tag;
-            }, 10, 2);
+            }
     
             wp_localize_script(
                 'emmerce-chatbot-js',
-                'wpChatbot',
+                'emmerceChatbot',
                 [
                     'position' => esc_attr(get_option('emmerce_chat_position', 'right')),
-                    'accessToken' => $access_token
+                    'ajaxurl' => admin_url('admin-ajax.php')
                 ]
             );
         }
@@ -100,6 +132,7 @@ final class EmmerceChatBot {
     public static function emmerce_chatbot_inject_container() {
         $active = esc_attr(get_option('emmerce_chat_active', '1'));
         if($active === '1'){
+            echo '<input type="hidden" id="emmerce-chat-nonce" value="'.  wp_create_nonce('emmerce_chat_nonce'). '">';
             echo '<div id="emmerce-chatbot-root"></div>';
         }
     }
@@ -167,7 +200,6 @@ final class EmmerceChatBot {
 
         add_settings_section('emmerce_api_settings', 'API Credentials', [__CLASS__, 'emmerce_api_settings_callback'], 'emmerce-chatbot-settings');
 
-        // Register these fields conditionally
         if (get_option('emmerce_access_token') && get_option('emmerce_refresh_token')) {
             add_settings_field('emmerce_access_token_display', 'Access Token', [__CLASS__, 'emmerce_access_token_display_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
             add_settings_field('emmerce_refresh_token_display', 'Refresh Token', [__CLASS__, 'emmerce_refresh_token_display_callback'], 'emmerce-chatbot-settings', 'emmerce_api_settings');
@@ -326,7 +358,8 @@ final class EmmerceChatBot {
     }
 
     /**
-     * Get access token from API.
+     * Get access token from API. If WP_DEBUG is enabled, use the demo server, else
+     * use the production server
      *
      * @since 1.0.0
      * @param string $username The username.
@@ -334,7 +367,12 @@ final class EmmerceChatBot {
      * @return array|false The access token data or false on failure.
      */
     public static function get_access_token_from_api($username, $password) {
-        $api_url = 'https://demoinfinity.emmerce.io/api/v1/auth-usr/login';
+        
+        if(WP_DEBUG){
+            $api_url = 'https://demoinfinity.emmerce.io/api/v1/auth-usr/login';
+        } else {
+            $api_url = 'https://infinity.emmerce.co.ke/api/v1/auth-usr/login';
+        }
 
         $response = wp_remote_post($api_url, array(
             'headers' => array('Content-Type' => 'application/json'),
@@ -362,7 +400,9 @@ final class EmmerceChatBot {
     }
 
     /**
-     * Refresh the access token as need arises
+     * Refresh the access token as need arises. Chooses tokens between live or demo
+     * servers depending on the status of WP_DEBUG
+     * 
      * @since 1.0.0
      * @return array|false The access token data or false on failure.
      */
@@ -374,7 +414,12 @@ final class EmmerceChatBot {
             return false;
         }
 
-        $api_url = 'https://demoinfinity.emmerce.io/api/v1/auth-usr/token/refresh';
+        if(WP_DEBUG){
+            $api_url = 'https://demoinfinity.emmerce.io/api/v1/auth-usr/token/refresh';
+        } else {
+            $api_url = 'https://infinity.emmerce.co.ke/api/v1/auth-usr/token/refresh';
+        }
+
 
         $response = wp_remote_post($api_url, array(
             'headers' => array('Content-Type' => 'application/json'),
@@ -419,6 +464,113 @@ final class EmmerceChatBot {
     public static function emmerce_refresh_token_display_callback() {
         $refresh_token = get_option('emmerce_refresh_token');
         echo "<input type='text' value='" . esc_attr(substr($refresh_token, 0, 50)) . "...' readonly />";
+    }
+
+    /**
+     * Register AJAX endpoints.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_register_ajax_endpoints() {
+        add_action('wp_ajax_emmerce_chat_message', [__CLASS__, 'emmerce_chat_message_callback']);
+        add_action('wp_ajax_nopriv_emmerce_chat_message', [__CLASS__, 'emmerce_chat_message_callback']);
+    }
+
+    /**
+     * AJAX callback for sending chat messages.
+     *
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_chat_message_callback() {
+        if (!check_ajax_referer('emmerce_chat_nonce', 'security', false)) {
+            wp_send_json_error('Invalid security token.');
+            wp_die();
+        }
+
+        $access_token = get_option('emmerce_access_token');
+        if (empty($access_token)) {
+            wp_send_json_error('Access token not found.');
+            wp_die();
+        }
+
+        $data       = $_POST['data'];
+        $url        = sanitize_url($_POST['url']);
+        $method     = sanitize_text_field($_POST['method']);
+
+        $api_response = self::send_message_to_api($access_token, $data, $url, $method);
+
+        if (is_wp_error($api_response)) {
+            wp_send_json_error($api_response->get_error_message());
+            wp_die();
+        }
+
+        wp_send_json_success($api_response);
+        wp_die();
+    }
+
+    /**
+     * Wrapper that Sends message to API and relays back the full communication
+     *
+     * @since 1.0.0
+     * @param string $access_token The access token.
+     * @param string $message The message to send.
+     * @return array|WP_Error The API response or WP_Error on failure.
+     */
+    public static function send_message_to_api($access_token, $data, $api_url, $method = "GET") {
+        
+        if( $method === 'GET' ){
+            $response = wp_remote_get($api_url, array(
+                'headers' => array(
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Bearer ' . $access_token,
+                )
+            ));
+        } else if ($method === 'POST') {
+            $response = wp_remote_post($api_url, array(
+                'headers' => array(
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Bearer ' . $access_token,
+                ),
+                'body' => str_replace('\\', '', $data)
+            ));
+        }
+
+        if (is_wp_error($response)) {
+            return $response;
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+
+        return $data;
+    }
+
+    /**
+     * Show a persistent warning to the Admin when WP_DEBUG is true because
+     * this chatbot will not work as expected. Technically there is a 
+     * high chance that the development server has not been set.
+     * 
+     * @since 1.0.0
+     * @return void
+     */
+    public static function show_wp_debug_warning(){
+        if (WP_DEBUG) {
+            echo '<style>
+            .notice-error.emmerce p {
+                font-weight: bold;
+                font-size: 16px;
+            }
+            </style>';
+
+            ?>
+            <div class="notice notice-error emmerce">
+                <p><?php _e('WP_DEBUG is enabled. Emmerce Chatbot may not work as expected.', 'emmerce-chatbot'); ?></p>
+            </div>
+            <?php
+
+        }
     }
 
 }
