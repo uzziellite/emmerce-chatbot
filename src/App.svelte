@@ -1,33 +1,69 @@
-<div class="fixed bottom-4 right-4 z-50">
-  <div class="bg-white rounded-lg shadow-lg overflow-hidden w-80 max-w-sm">
-    <div class="bg-blue-600 text-white p-4">
-      <h3 class="text-lg font-semibold">Chat with us</h3>
-    </div>
+<script>
+  import {onMount} from "svelte";
 
-    <div class="p-4 h-64 overflow-y-auto">
-      <div class="mb-2">
-        <div class="bg-gray-200 rounded-lg p-2 max-w-[100%]">
-          Hello! How can I help you?
-        </div>
-      </div>
-      <div class="mb-2 flex justify-end">
-        <div class="bg-blue-100 rounded-lg p-2 max-w-[80%]">Hi there!</div>
-      </div>
-    </div>
+  let nonce;
+  const position = emmerceChatbot.position;
+  const endpoint = emmerceChatbot.ajaxurl;
 
-    <div class="p-4 border-t border-gray-200">
-      <div class="flex">
-        <input
-          type="text"
-          placeholder="Type your message..."
-          class="flex-1 border rounded-l-md p-2 focus:outline-none focus:ring focus:border-blue-300"
-        />
-        <button
-          class="bg-blue-600 text-white p-2 rounded-r-md hover:bg-blue-700"
-        >
-          Send
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
+  /**
+   * 
+   * @param payload A JSON payload
+   * @param url The Address to connect to
+   * @param nonce Wordpress Security Key
+   * @param method Method that the API will accept
+   */
+  const sendChatMessage = (url, nonce, method, payload = {}) => {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      const data = JSON.stringify(payload);
+      
+      formData.append('action', 'emmerce_chat_message');
+      formData.append('message', data);
+      formData.append('url', url);
+      formData.append('method', method);
+      formData.append('security', nonce);
+
+      fetch(endpoint, {
+        method: 'POST',
+        body: formData,
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (data.success) {
+            resolve(data.data);
+          } else {
+            reject(data.data);
+          }
+        })
+        .catch(error => {
+          reject(error);
+        });
+    });
+  }
+
+  onMount(() => {
+    console.info(`Emmerce Chatbot Mounted. Ready for service!`)
+    nonce = document.getElementById('emmerce-chat-nonce')?.value;
+    if (!nonce) {
+      console.error('Nonce not found.');
+    }
+
+    const params = {
+      "page":2,
+      "limit":5
+    }
+
+    sendChatMessage('https://demoinfinity.emmerce.io/api/v1/product/assortment/get_list/49', nonce,'GET')
+    .then(apiResponse => {
+      console.log('API Response:', apiResponse);
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+  })
+</script>
