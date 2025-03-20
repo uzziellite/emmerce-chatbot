@@ -495,11 +495,11 @@ final class EmmerceChatBot {
             wp_die();
         }
 
-        $message    = $_POST['message'];
-        $url        = sanitize_text_field($_POST['url']);
+        $data       = $_POST['data'];
+        $url        = sanitize_url($_POST['url']);
         $method     = sanitize_text_field($_POST['method']);
 
-        $api_response = self::send_message_to_api($access_token, $message, $url, $method);
+        $api_response = self::send_message_to_api($access_token, $data, $url, $method);
 
         if (is_wp_error($api_response)) {
             wp_send_json_error($api_response->get_error_message());
@@ -518,18 +518,10 @@ final class EmmerceChatBot {
      * @param string $message The message to send.
      * @return array|WP_Error The API response or WP_Error on failure.
      */
-    public static function send_message_to_api($access_token, $message, $api_url, $method = "GET") {
+    public static function send_message_to_api($access_token, $data, $api_url, $method = "GET") {
         
-        $params = json_decode($message, true);
-        
-        if( is_array( $params ) ){
-            $url_with_params = add_query_arg($params, $api_url);
-        }
-        
-        $url = isset($url_with_params) ? $url_with_params : $api_url;
-
         if( $method === 'GET' ){
-            $response = wp_remote_get($url, array(
+            $response = wp_remote_get($api_url, array(
                 'headers' => array(
                     'Content-Type' => 'application/json',
                     'Authorization' => 'Bearer ' . $access_token,
@@ -541,7 +533,7 @@ final class EmmerceChatBot {
                     'Content-Type' => 'application/json',
                     'Authorization' => 'Bearer ' . $access_token,
                 ),
-                'body' => $message,
+                'body' => str_replace('\\', '', $data)
             ));
         }
 

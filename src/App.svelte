@@ -13,13 +13,32 @@
    * @param method Method that the API will accept
    */
   const sendChatMessage = (url, nonce, method, payload = {}) => {
+    
+    let destination = url;
+    let data;
+    
+    if(method === 'GET'){
+      const keys = Object.keys(payload);
+      destination += `?${keys[0]}=${payload[keys[0]]}`;
+      keys.forEach((item,index) => {
+        if(index !== 0){
+          destination += `&${item}=${payload[item]}`
+        }
+      });
+    } else if (method === 'POST') {
+      data = JSON.stringify(payload);
+    }
+
     return new Promise((resolve, reject) => {
       const formData = new FormData();
-      const data = JSON.stringify(payload);
       
       formData.append('action', 'emmerce_chat_message');
-      formData.append('message', data);
-      formData.append('url', url);
+      
+      if(method === 'POST') {
+        formData.append('data', data);
+      }
+
+      formData.append('url', destination);
       formData.append('method', method);
       formData.append('security', nonce);
 
@@ -53,17 +72,20 @@
       console.error('Nonce not found.');
     }
 
+    /*
+    Example Usage of the transporter function
     const params = {
-      "page":2,
-      "limit":5
+      "start_date": "2025-03-01",
+      "end_date": "2025-03-31",
+      "client": 49
     }
 
-    sendChatMessage('https://demoinfinity.emmerce.io/api/v1/product/assortment/get_list/49', nonce,'GET')
+    sendChatMessage('https://demoinfinity.emmerce.io/api/v1/dashboard/filter/view/', nonce,'POST', params)
     .then(apiResponse => {
       console.log('API Response:', apiResponse);
     })
     .catch(error => {
       console.error('Error:', error);
-    });
+    });*/
   })
 </script>
