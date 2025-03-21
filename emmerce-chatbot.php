@@ -101,12 +101,7 @@ final class EmmerceChatBot {
                                 null
                             );
 
-                            add_filter('style_loader_tag', function ($tag, $handle) {
-                                if ('emmerce-chatbot-css' === $handle) {
-                                    $tag = str_replace('rel="stylesheet"', 'rel="preload" as="style" onload="this.onload=null;this.rel=\'stylesheet\'"', $tag);
-                                }
-                                return $tag;
-                            }, 10, 2);
+                            
                         }
                     }
                 }
@@ -116,8 +111,9 @@ final class EmmerceChatBot {
                 'emmerce-chatbot-js',
                 'emmerceChatbot',
                 [
-                    'position' => esc_attr(get_option('emmerce_chat_position', 'right')),
-                    'ajaxurl' => admin_url('admin-ajax.php')
+                    'position'  => esc_attr(get_option('emmerce_chat_position', 'right')),
+                    'ajaxurl'   => admin_url('admin-ajax.php'),
+                    'debugMode' => WP_DEBUG 
                 ]
             );
         }
