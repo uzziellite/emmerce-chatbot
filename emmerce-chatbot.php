@@ -113,7 +113,9 @@ final class EmmerceChatBot {
                 [
                     'position'  => esc_attr(get_option('emmerce_chat_position', 'right')),
                     'ajaxurl'   => admin_url('admin-ajax.php'),
-                    'debugMode' => WP_DEBUG 
+                    'debugMode' => WP_DEBUG,
+                    'snapSound' => plugin_dir_url(__FILE__). 'src/media/snap.mp3',
+                    'popSound'  => plugin_dir_url(__FILE__). 'src/media/pop.mp3'
                 ]
             );
         }
