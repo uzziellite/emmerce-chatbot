@@ -4,6 +4,7 @@
 
   let nonce;
   const clientId = emmerceChatbot.clientId;
+  const chatHandler = emmerceChatbot.chatHandler;
   let isOpen = $state( emmerceChatbot.isOpen ? emmerceChatbot.isOpen : false );
   let colors = [];
   let business_name = "Our website";
@@ -117,7 +118,7 @@
       "client": clientId
     }
 
-    sendRequestToApi(endpoint, 'https://demoinfinity.emmerce.io/api/v1/clients/clients/48', nonce,'GET', params)
+    sendRequestToApi(endpoint, `https://demoinfinity.emmerce.io/api/v1/clients/clients/${clientId}`, nonce,'GET', params)
     .then(apiResponse => {
       console.log('API Response:', apiResponse);
     })
@@ -217,8 +218,8 @@
             </div>
           </div>
         {:else}
-          <div class="emc:flex emc:justify-center emc:items-center emc:bg-gray-100">
-            <div class="emc:bg-white/70 emc:backdrop-blur-md emc:shadow-lg emc:py-2 emc:px-4 emc:w-full">
+          <div class="emc:flex emc:justify-center emc:items-center">
+            <div class="emc:py-2 emc:px-4 emc:w-full">
               <h2 class="emc:font-semibold emc:text-gray-700 emc:text-center emc:mb-4">Customer Information</h2>
       
               <form onsubmit={submitForm} class="emc:space-y-4">
