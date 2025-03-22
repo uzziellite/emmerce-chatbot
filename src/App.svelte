@@ -3,6 +3,7 @@
   import {sendRequestToApi} from "./lib/helper.js";
 
   let nonce;
+  const clientId = emmerceChatbot.clientId;
   let isOpen = $state( emmerceChatbot.isOpen ? emmerceChatbot.isOpen : false );
   let colors = [];
   let business_name = "Our website";
@@ -67,7 +68,7 @@
     if(conversation.trim() === ""){
       return;
     }
-    
+
     const data = {
       "content": conversation,
       "from_bot": false
@@ -113,10 +114,10 @@
     const params = {
       "start_date": "2025-03-01",
       "end_date": "2025-03-31",
-      "client": 49
+      "client": clientId
     }
 
-    sendRequestToApi(endpoint, 'https://demoinfinity.emmerce.io/api/v1/dashboard/filter/view/', nonce,'POST', params)
+    sendRequestToApi(endpoint, 'https://demoinfinity.emmerce.io/api/v1/clients/clients/48', nonce,'GET', params)
     .then(apiResponse => {
       console.log('API Response:', apiResponse);
     })
@@ -142,7 +143,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="emc:size-6 emc:animate-wiggle">
         <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 0 1 .778-.332 48.294 48.294 0 0 0 5.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
       </svg>
-      <span class="emc:text-[16px] emc:font-semibold">Chat With Us</span>
+      <span class="emc:text-[16px] emc:font-semibold emc:font-[Inter]">Chat With Us</span>
 
       <!-- Pinging Dot -->
       <span class="emc:absolute emc:bottom-0 emc:right-0 emc:-mb-1 emc:mr-2 emc:flex emc:h-3 emc:w-3">
@@ -162,7 +163,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="emc:size-6">
         <path stroke-linecap="round" stroke-linejoin="round" d="M11.99 7.5 8.24 3.75m0 0L4.49 7.5m3.75-3.75v16.499h11.25" />
       </svg>
-      <span class="emc:text-gray-700 emc:font-medium">
+      <span class="emc:text-gray-700 emc:font-medium emc:font-[Inter]">
         {chatTitle}
       </span>
       <!-- Close Button -->
@@ -190,7 +191,7 @@
             <div class="imessage emc:flex emc:flex-col">
               {#each messages as message}
                 {#if message.from_bot}
-                  <p class={`from-emmerce emc:mb-2 emc:mt-2 emc:text-[16px]`}>
+                  <p class={`from-emmerce emc:mb-2 emc:mt-2 emc:text-[16px] font-[Inter]`}>
                     {message.content}
                   </p>
                 {:else}

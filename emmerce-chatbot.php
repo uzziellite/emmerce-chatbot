@@ -115,7 +115,8 @@ final class EmmerceChatBot {
                     'ajaxurl'   => admin_url('admin-ajax.php'),
                     'debugMode' => WP_DEBUG,
                     'snapSound' => plugin_dir_url(__FILE__). 'src/media/snap.mp3',
-                    'popSound'  => plugin_dir_url(__FILE__). 'src/media/pop.mp3'
+                    'popSound'  => plugin_dir_url(__FILE__). 'src/media/pop.mp3',
+                    'clientId'  => esc_attr(get_option('emmerce_chat_client_id'))
                 ]
             );
         }
@@ -208,10 +209,12 @@ final class EmmerceChatBot {
 
         register_setting('emmerce_chatbot_settings_group', 'emmerce_chat_position', 'sanitize_text_field');
         register_setting('emmerce_chatbot_settings_group', 'emmerce_chat_active', 'sanitize_text_field');
+        register_setting('emmerce_chatbot_settings_group', 'emmerce_chat_client_id', 'sanitize_text_field');
 
         add_settings_section('emmerce_widget_settings', 'Chat Widget Settings', [__CLASS__, 'emmerce_widget_settings_callback'], 'emmerce-chatbot-settings');
         add_settings_field('emmerce_chat_position', 'Chat Floater Position', [__CLASS__, 'emmerce_chat_position_callback'], 'emmerce-chatbot-settings', 'emmerce_widget_settings');
         add_settings_field('emmerce_chat_active', 'Activate/Deactivate Chat', [__CLASS__, 'emmerce_chat_active_callback'], 'emmerce-chatbot-settings', 'emmerce_widget_settings');
+        add_settings_field('emmerce_chat_client_id', 'Client ID', [__CLASS__, 'emmerce_chat_client_id_callback'], 'emmerce-chatbot-settings', 'emmerce_widget_settings');
 
         add_action('admin_notices', [__CLASS__, 'emmerce_settings_notices']);
     }
@@ -289,6 +292,16 @@ final class EmmerceChatBot {
         echo "<input type='checkbox' name='emmerce_chat_active' value='1' " . checked($active, '1', false) . ">";
         echo "<span class='slider round'></span>";
         echo "</label>";
+    }
+
+    /**
+     * Client Id callback
+     * @since 1.0.0
+     * @return void
+     */
+    public static function emmerce_chat_client_id_callback() {
+        $client_id = esc_attr(get_option('emmerce_chat_client_id'));
+        echo '<input type="number" min="1" name="emmerce_chat_client_id" value="'.$client_id.'" />';
     }
 
     /**

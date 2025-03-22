@@ -1,5 +1,6 @@
 .wrap input[type="text"],
 .wrap input[type="password"],
+input[type="number"],
 .wrap select {
     width: 50%;
     padding: 10px;
@@ -14,6 +15,7 @@
 
 .wrap input[type="text"]:focus,
 .wrap input[type="password"]:focus,
+input[type="number"]:focus,
 .wrap select:focus {
     border-color: #007cba;
     outline: none;
