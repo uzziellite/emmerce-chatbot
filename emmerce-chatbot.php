@@ -120,7 +120,8 @@ final class EmmerceChatBot {
                     'chatHandler'   => esc_attr(get_option('emmerce_chat_handler')),
                     'accessUrl'     => WP_DEBUG ? 'https://demoinfinity.emmerce.io/api/v1' : 'https://infinity.emmerce.co.ke/api/v1',
                     'nonce'         => wp_create_nonce('emmerce_chat_nonce'),
-                    'businessName'  => get_bloginfo('name')
+                    'businessName'  => get_bloginfo('name'),
+                    'sr'           => WP_DEBUG ? base64_encode('wss://demoinfinity.emmerce.io/ws/chat/' . esc_attr(get_option('emmerce_chat_client_id')) . '/?token=' . esc_attr(get_option('emmerce_access_token'))) : base64_encode('wss://infinity.emmerce.co.ke/ws/chat/' . esc_attr(get_option('emmerce_chat_client_id')) . '/?token=' . esc_attr(get_option('emmerce_access_token')))
                 ]
             );
         }
