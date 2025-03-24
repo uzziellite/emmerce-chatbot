@@ -75,3 +75,92 @@ export const getGreeting = () => {
     return "Good night";
   }
 }
+
+/**
+ * Web socket manager class for managing web socket connections to and from
+ * the chat backend
+ */
+export class WebSocketManager {
+  constructor(url, options = {}) {
+    this.url = url;
+    this.reconnectInterval = options.reconnectInterval || 5000;
+    this.socket = null;
+    this.connected = false;
+    this.messageListeners = [];
+    this.errorListeners = [];
+    this.connectListeners = [];
+    this.disconnectListeners = [];
+    this.reconnectTimeout = null;
+
+    this.connect();
+  }
+
+  connect() {
+    if (this.socket) {
+      this.socket.close();
+    }
+
+    this.socket = new WebSocket(this.url);
+
+    this.socket.onopen = () => {
+      this.connected = true;
+      this.errorListeners.forEach((listener) => listener(null));
+      this.connectListeners.forEach((listener) => listener());
+      if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+    };
+
+    this.socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        this.messageListeners.forEach((listener) => listener(data));
+      } catch (e) {
+        this.messageListeners.forEach((listener) => listener(event.data));
+      }
+    };
+
+    this.socket.onerror = (event) => {
+      this.errorListeners.forEach((listener) => listener(event));
+      this.connected = false;
+    };
+
+    this.socket.onclose = () => {
+      this.connected = false;
+      this.disconnectListeners.forEach((listener) => listener());
+      this.reconnect();
+    };
+  }
+
+  reconnect() {
+    if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+    this.reconnectTimeout = setTimeout(this.connect.bind(this), this.reconnectInterval);
+  }
+
+  send(data) {
+    if (this.socket && this.connected) {
+      this.socket.send(JSON.stringify(data));
+    }
+  }
+
+  addMessageListener(listener) {
+    this.messageListeners.push(listener);
+  }
+
+  addErrorListener(listener) {
+    this.errorListeners.push(listener);
+  }
+
+  addConnectListener(listener) {
+    this.connectListeners.push(listener);
+  }
+
+   addDisconnectListener(listener) {
+    this.disconnectListeners.push(listener);
+  }
+
+  close(){
+    if(this.socket){
+      this.socket.close();
+    }
+    if(this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+  }
+}
