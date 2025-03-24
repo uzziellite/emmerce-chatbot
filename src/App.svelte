@@ -1,6 +1,7 @@
 <script>
   import {onMount} from "svelte";
   import {sendRequestToApi, getGreeting, WebSocketManager, validatePhoneNumber} from "./lib/helper.js";
+  import {ChatSessionDB} from "./lib/db.js";
 
   let nonce = emmerceChatbot.nonce;
   const clientId = emmerceChatbot.clientId;
@@ -26,12 +27,13 @@
   const position = emmerceChatbot.position;
   const endpoint = emmerceChatbot.ajaxurl;
   const positionPrefix = position === 'right' ? 'r' : 'l';
-  const chatTitle = emmerceChatbot.title ? emmerceChatbot.title : "Emmerce Chat";
   let inputElement = $state(null);
   let chatContainer = $state(null);
   let userData = $state(null);
   const wsr = atob( emmerceChatbot.sr );
   const websocket = new WebSocketManager(wsr, { reconnectInterval: 3000 });
+  const chatSessionDB = new ChatSessionDB();
+  let sessionKey = $state("");
 
   /**
    * Handle dynamic updates
@@ -72,6 +74,30 @@
   }
 
   /**
+   * Manage chat session
+  */
+  const manageChatSession = async (sessionId, newMessage) => {
+    try {
+      let session = await chatSessionDB.getSession(sessionId);
+  
+      if (!session) {
+        session = { sessionId, messages: [], timestamp: Date.now() };
+      }
+  
+      if (newMessage) {
+        session.messages.push(newMessage);
+        session.timestamp = Date.now(); // Update timestamp on new message
+      }
+  
+      await chatSessionDB.storeSession(session);
+      console.log('Session updated:', session);
+  
+    } catch (error) {
+      console.error('Error managing chat session:', error);
+    }
+  }
+
+  /**
    * Get user data so that you can tell who you are chatting with
    * Enables the Emmerce App Subscriber to tell who it is they are talking to
    */
@@ -95,19 +121,21 @@
     .then(apiResponse => {
       
       loading = false;
-      userData.session_active = true;
       userData.session_start = apiResponse.data?.created_at;
       userData.session_id = apiResponse.data?.conversation?.session_id;
       
-      localStorage.setItem('user_data', JSON.stringify(userData));
-      chatStarted = true;
-      messages.push(initialChat);
-      //for testing purposes
-      //localStorage.removeItem('user_data');
-      
-      const audio = new Audio(emmerceChatbot.snapSound);
-      audio.play();
+      if( userData.session_id ){
+        
+        userData.session_active = true;
+        localStorage.setItem('user_data', JSON.stringify(userData));
+        chatStarted = true;
+        messages.push(initialChat);
+        manageChatSession(userData.session_id, initialChat);
+        
+        const audio = new Audio(emmerceChatbot.snapSound);
+        audio.play();
 
+      }
     })
     .catch(error => {
       console.error('Error:', error);
@@ -136,6 +164,19 @@
 
     const audio = new Audio(emmerceChatbot.popSound);
     audio.play();
+
+    manageChatSession(sessionKey, data);
+  }
+
+  /**
+   * Get the chat transcript
+  */
+  const getTranscript = async(sessionID) => {
+    try{
+        return await chatSessionDB.getSession(sessionID);
+    } catch(error){
+        console.error("Error retrieving transcript: ", error);
+    }
   }
 
   onMount(async () => {
@@ -167,14 +208,18 @@
       name = data.name;
       email = data.email;
       phone = data.phone;
+      sessionKey = data.session_id;
 
       if(data.session_active){
         chatStarted = true;
         showChatStatus = false;
+        const transcript = await getTranscript(sessionKey);
+        messages = transcript.messages;
       }else{
         showChatStatus = true;
         chatStarted = false;
       }
+
     }
 
     /**
@@ -195,7 +240,7 @@
     websocket.addDisconnectListener(() => {
         console.log("websocket disconnected");
     });
-  })
+  });
 </script>
 
 <div class={`emc:fixed emc:bottom-0 emc:right-1 emc:mb-4 emc:mr-4 emc:z-50`}>
