@@ -2,11 +2,12 @@
   import {onMount} from "svelte";
   import {sendRequestToApi} from "./lib/helper.js";
 
-  let nonce;
+  let nonce = emmerceChatbot.nonce;
   const clientId = emmerceChatbot.clientId;
   const chatHandler = emmerceChatbot.chatHandler;
   let isOpen = $state( emmerceChatbot.isOpen ? emmerceChatbot.isOpen : false );
-  let colors = [];
+  let chatButtonColor = $state(null);
+  let chatButtonHover = $state(null);
   let business_name = "Our website";
   let messages = $state([
     {
@@ -26,8 +27,35 @@
   const endpoint = emmerceChatbot.ajaxurl;
   const positionPrefix = position === 'right' ? 'r' : 'l';
   const chatTitle = emmerceChatbot.title ? emmerceChatbot.title : "Emmerce Chat";
-  let inputElement = $state();
-  let chatContainer = $state();
+  let inputElement = $state(null);
+  let chatContainer = $state(null);
+  let userData = $state(null);
+
+  /**
+   * Handle dynamic updates
+   */
+  $effect(() => {
+    if (chatContainer && messages.length > 0) {
+      chatContainer.scrollTop = chatContainer.scrollHeight - chatContainer.clientHeight;
+    }
+    
+    userData = {
+      "name":name,
+      "email":email,
+      "phone":phone,
+      "session_active": true,
+      "session_start": new Date().getTime()
+    };
+
+    /*setInterval(() => {
+      const now = new Date().getTime();
+      const span = now - userData.session_start;
+      if(span > 5000) {
+        chatStarted = false;
+        showChatStatus = true;
+      }
+    },1000);*/
+  });
 
   /**
    * Handle the enter Key to send message to the customer as need be
@@ -42,18 +70,13 @@
    * Get user data so that you can tell who you are chatting with
    * Enables the Emmerce App Subscriber to tell who it is they are talking to
    */
-  const submitForm = () => {
+  const submitForm = (event) => {
+    event.preventDefault();
     if (!name.trim()) errors.name = 'Name is required.';
     if (!/^\S+@\S+\.\S+$/.test(email)) errors.email = 'Invalid email address.';
     if (!/^\d{10}$/.test(phone)) errors.phone = 'Phone must be 10 digits.';
     if(errors.name || errors.phone || errors.email) return;
 
-    const userData = {
-      "name":name,
-      "email":email,
-      "phone":phone,
-      "session_active": true
-    };
 
     localStorage.setItem('user_data', JSON.stringify(userData));
     chatStarted = true;
@@ -82,15 +105,34 @@
     audio.play();
   }
 
-  onMount(() => {
+  onMount(async () => {
+    /**
+     * Fetch Color labels
+     */
+     await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/labels/${clientId}`, nonce,'GET')
+    .then(apiResponse => {
+      console.log('API Response:', apiResponse);
+      
+      const getChatColor = (data) => {
+        for (let i = 0; i < data.length; i++) {
+          if (data[i].label_name === "ChatButton") {
+            chatButtonColor = data[i].color;
+          } else if(data[i].label_name === "ChatButtonHover"){
+            chatButtonHover = data[i].color;
+          }
+        }
+        return '#000000';
+      }
+
+      getChatColor(apiResponse);
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
     /**
      * Log on the terminal that Chat is ready
     */
     console.info(`Emmerce Chatbot Mounted. Ready for service!`)
-    nonce = document.getElementById('emmerce-chat-nonce')?.value;
-    if (!nonce) {
-      console.error('Nonce not found.');
-    }
 
     /**
      * If customer records already exist, proceed to the chat window.
@@ -111,36 +153,15 @@
       }
     }
 
-    
-    const params = {
-      "start_date": "2025-03-01",
-      "end_date": "2025-03-31",
-      "client": clientId
-    }
-
-    sendRequestToApi(endpoint, `https://demoinfinity.emmerce.io/api/v1/clients/clients/${clientId}`, nonce,'GET', params)
-    .then(apiResponse => {
-      console.log('API Response:', apiResponse);
-    })
-    .catch(error => {
-      console.error('Error:', error);
-    });
-
   })
-
-  /**
-   * Scroll to the bottom of the chat container
-  */
-  $effect(() => {
-    if (chatContainer && messages.length > 0) {
-      chatContainer.scrollTop = chatContainer.scrollHeight - chatContainer.clientHeight;
-    }
-  });
 </script>
 
 <div class={`emc:fixed emc:bottom-0 emc:right-1 emc:mb-4 emc:mr-4 emc:z-50`}>
   {#if !isOpen}
-    <button onclick={() => isOpen = !isOpen} class="emc:relative emc:bg-blue-500 emc:text-white emc:py-2 emc:px-4 emc:rounded-4xl emc:hover:bg-blue-600 emc:transition emc:duration-300 emc:flex emc:items-center emc:space-x-2 emc:cursor-pointer">
+    <button 
+      style={`background-color: ${chatButtonColor};`} 
+      onclick={() => isOpen = !isOpen} 
+      class={`emc:relative emc:text-white emc:py-2 emc:px-4 emc:rounded-4xl emc:transition emc:duration-300 emc:flex emc:items-center emc:space-x-2 emc:cursor-pointer`}>
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="emc:size-6 emc:animate-wiggle">
         <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 0 1 .778-.332 48.294 48.294 0 0 0 5.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
       </svg>
