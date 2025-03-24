@@ -164,3 +164,61 @@ export class WebSocketManager {
     if(this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
   }
 }
+
+/**
+ * Generate color gradients based on a hex value
+ */
+export const generateColorGradients = (hexColor, steps = 5) => {
+  const hexRegex = /^#([0-9A-Fa-f]{3}){1,2}$/;
+  if (!hexRegex.test(hexColor)) {
+    return "Invalid hex color";
+  }
+
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+
+  const gradients = [];
+
+  for (let i = 0; i <= steps; i++) {
+    const factor = i / steps;
+
+    const lighterR = Math.round(r + (255 - r) * factor);
+    const lighterG = Math.round(g + (255 - g) * factor);
+    const lighterB = Math.round(b + (255 - b) * factor);
+
+    const darkerR = Math.round(r * (1 - factor));
+    const darkerG = Math.round(g * (1 - factor));
+    const darkerB = Math.round(b * (1 - factor));
+
+    const lighterHex = `#${lighterR.toString(16).padStart(2, '0')}${lighterG.toString(16).padStart(2, '0')}${lighterB.toString(16).padStart(2, '0')}`;
+    const darkerHex = `#${darkerR.toString(16).padStart(2, '0')}${darkerG.toString(16).padStart(2, '0')}${darkerB.toString(16).padStart(2, '0')}`;
+
+    gradients.push({ lighter: lighterHex, darker: darkerHex });
+  }
+
+  return gradients;
+}
+
+/**
+ * Validate phone numbers
+ */
+export const validatePhoneNumber = (phoneNumber) => {
+  const cleanedNumber = phoneNumber.replace(/[^+\d]/g, '');
+  const kenyanRegex = /^(?:\+?254|0)?(7(?:(?:[0-9]){8}))$/;
+  const usCanadaRegex = /^(1|)?[-.\s]?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})$/;
+  const ukRegex = /^(?:0|\+44) ?(?:\\(0\\))? ?(?:[0-9] ?){8,9}[0-9]$/;
+  const internationalRegex = /^\+(?:[0-9] ?){6,14}[0-9]$/;
+
+  if (internationalRegex.test(cleanedNumber)) {
+    return true;
+  } else if (usCanadaRegex.test(cleanedNumber)) {
+    return true;
+  } else if (ukRegex.test(cleanedNumber)){
+    return true;
+  } else if (kenyanRegex.test(cleanedNumber)){
+    return true;
+  } else {
+    return false;
+  }
+}

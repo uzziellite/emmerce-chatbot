@@ -1,17 +1,19 @@
 <script>
   import {onMount} from "svelte";
-  import {sendRequestToApi, getGreeting} from "./lib/helper.js";
+  import {sendRequestToApi, getGreeting, WebSocketManager, validatePhoneNumber} from "./lib/helper.js";
 
   let nonce = emmerceChatbot.nonce;
   const clientId = emmerceChatbot.clientId;
   const chatHandler = emmerceChatbot.chatHandler;
   let isOpen = $state( emmerceChatbot.isOpen ? emmerceChatbot.isOpen : false );
   let chatButtonColor = $state(null);
+  let loading = $state(false);
   let chatButtonHover = $state(null);
   let chatButtonPingColor = $state(null);
   let business_name = emmerceChatbot.businessName;
   let greetings = getGreeting();
   let messages = $state([]);
+  let chatSettings = $state("");
   
   let chatStarted = $state(false);
   let showChatStatus = $state(false);
@@ -19,7 +21,7 @@
   let name = $state("");
   let email = $state("");
   let phone = $state("");
-  let errors = {};
+  let errors = $state({});
   let initialChat;
   const position = emmerceChatbot.position;
   const endpoint = emmerceChatbot.ajaxurl;
@@ -28,6 +30,8 @@
   let inputElement = $state(null);
   let chatContainer = $state(null);
   let userData = $state(null);
+  const wsr = atob( emmerceChatbot.sr );
+  const websocket = new WebSocketManager(wsr, { reconnectInterval: 3000 });
 
   /**
    * Handle dynamic updates
@@ -40,9 +44,7 @@
     userData = {
       "name":name,
       "email":email,
-      "phone":phone,
-      "session_active": true,
-      "session_start": new Date().getTime()
+      "phone":phone
     };
 
     initialChat = {
@@ -77,16 +79,41 @@
     event.preventDefault();
     if (!name.trim()) errors.name = 'Name is required.';
     if (!/^\S+@\S+\.\S+$/.test(email)) errors.email = 'Invalid email address.';
-    if (!/^\d{10}$/.test(phone)) errors.phone = 'Phone must be 10 digits.';
+    if (!validatePhoneNumber(phone)) errors.phone = 'Please enter a valid phone number';
     if(errors.name || errors.phone || errors.email) return;
 
+    const params = {
+      "customer_name": name,
+      "customer_email": email,
+      "customer_phone": phone,
+      "client_id": clientId
+    }
 
-    localStorage.setItem('user_data', JSON.stringify(userData));
-    chatStarted = true;
-    messages.push(initialChat);
+    loading = true;
 
-    const audio = new Audio(emmerceChatbot.snapSound);
-    audio.play();
+    sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/send-website-message/${clientId}/`, nonce,'POST', params)
+    .then(apiResponse => {
+      
+      loading = false;
+      userData.session_active = true;
+      userData.session_start = apiResponse.data?.created_at;
+      userData.session_id = apiResponse.data?.conversation?.session_id;
+      
+      localStorage.setItem('user_data', JSON.stringify(userData));
+      chatStarted = true;
+      messages.push(initialChat);
+      //for testing purposes
+      //localStorage.removeItem('user_data');
+      
+      const audio = new Audio(emmerceChatbot.snapSound);
+      audio.play();
+
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+
+
   }
 
   /**
@@ -96,6 +123,8 @@
     if(conversation.trim() === ""){
       return;
     }
+
+    //websocket.send({ type: 'message', content: 'Hello, server!' });
 
     const data = {
       "content": conversation,
@@ -111,24 +140,15 @@
 
   onMount(async () => {
     /**
-     * Fetch Color labels
+     * Fetch Chat Settings
      */
-     await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/labels/${clientId}`, nonce,'GET')
+     await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/clients/client-website-settings/${clientId}`, nonce,'GET')
     .then(apiResponse => {
-      const getChatColor = (data) => {
-        for (let i = 0; i < data.length; i++) {
-          if (data[i].label_name === "ChatButton") {
-            chatButtonColor = data[i].color;
-          } else if(data[i].label_name === "ChatButtonHover"){
-            chatButtonHover = data[i].color;
-          } else if(data[i].label_name === "ChatButtonPingColor"){
-            chatButtonPingColor = data[i].color;
-          }
-        }
-        return '#000000';
-      }
-
-      getChatColor(apiResponse);
+      chatSettings = apiResponse;
+      chatButtonColor = chatSettings.website_color
+      chatButtonHover = chatSettings.website_color
+      chatButtonPingColor = chatSettings.website_color
+      
     })
     .catch(error => {
       console.error('Error:', error);
@@ -157,6 +177,24 @@
       }
     }
 
+    /**
+     * Handle websocket messages
+    */
+    websocket.addMessageListener((message) => {
+      console.log('Received message:', message);
+    });
+
+    websocket.addErrorListener((error) => {
+      console.error('WebSocket error:', error);
+    });
+
+    websocket.addConnectListener(() => {
+        console.log("websocket connected");
+    });
+
+    websocket.addDisconnectListener(() => {
+        console.log("websocket disconnected");
+    });
   })
 </script>
 
@@ -169,7 +207,9 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="emc:size-6 emc:animate-wiggle">
         <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 0 1 .778-.332 48.294 48.294 0 0 0 5.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
       </svg>
-      <span class="emc:text-[16px] emc:font-semibold emc:font-[Inter]">Chat With Us</span>
+      <span class="emc:text-[16px] emc:font-semibold emc:font-[Inter]">
+        {chatSettings.call_to_action_text}
+      </span>
 
       <!-- Pinging Dot -->
       <span class="emc:absolute emc:bottom-0 emc:right-0 emc:-mb-1 emc:mr-2 emc:flex emc:h-3 emc:w-3">
@@ -185,12 +225,9 @@
           <span class="emc:animate-ping emc:absolute emc:inline-flex emc:h-full emc:w-full emc:rounded-full emc:bg-green-500 emc:opacity-75"></span>
           <span class="emc:relative emc:inline-flex emc:rounded-full emc:h-3 emc:w-3 emc:bg-green-500"></span>
       </span>
-      <!--Arrow pointing up-->
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="emc:size-6">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M11.99 7.5 8.24 3.75m0 0L4.49 7.5m3.75-3.75v16.499h11.25" />
-      </svg>
+      
       <span class="emc:text-gray-700 emc:font-medium emc:font-[Inter] emc:text-[16px]">
-        {chatTitle}
+        {chatSettings.client_name}
       </span>
       <!-- Close Button -->
       <svg xmlns="http://www.w3.org/2000/svg" class="emc:size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -203,13 +240,21 @@
 {#if isOpen}
   <div class={`emc:fixed emc:bottom-20 emc:right-0 emc:sm:right-4 emc:w-full emc:sm:w-96 emc:z-[9999] emc:pr-0 emc:sm:pr-2`}>
     <div class="emc:bg-white/80 emc:backdrop-blur-md emc:shadow-2xl emc:rounded-lg emc:sm:max-w-lg emc:w-full emc:mx-2 emc:sm:mx-auto">
+        <!--Main widget title-->
         <div 
           class="emc:px-4 emc:py-2 emc:border-b emc:text-white emc:rounded-t-lg emc:flex emc:justify-between emc:items-center"
           style={`background-color: ${chatButtonColor};`}>
-            <a 
+            <div 
               class="emc:text-lg emc:font-semibold emc:no-underline"
               href="https://emmerce.io"
-              target="_blank">{chatTitle}</a>
+              target="_blank">
+              <span class="emc:text-[28px]">
+                {chatSettings.widget_title} <br>
+              </span>
+              <span class="emc:text-[20px]">
+                {chatSettings.widget_description}
+              </span>
+            </div>
             <button 
               aria-label="Close" 
               class="emc:text-gray-300 emc:hover:text-white emc:focus:outline-none emc:focus:text-gray-400 emc:cursor-pointer" 
@@ -253,14 +298,14 @@
         {:else}
           <div class="emc:flex emc:justify-center emc:items-center">
             <div class="emc:py-2 emc:px-4 emc:w-full">
-              <h2 class="emc:font-semibold emc:text-gray-700 emc:text-center emc:mb-4 emc:text-[18px]">Customer Information</h2>
+              <h2 class="emc:font-semibold emc:text-center emc:mb-4 emc:text-[18px]">Customer Information</h2>
       
               <form onsubmit={submitForm} class="emc:space-y-4">
                   <!-- Name -->
                   <div>
-                      <label for="name" class="emc:block emc:text-gray-600 emc:font-medium emc:text-[16px]">Full Name</label>
+                      <label for="name" class="emc:block emc:font-medium emc:text-[16px]">Full Name</label>
                       <input id="name" type="text" bind:value={name} required
-                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px]" 
+                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px] emc:text-black" 
                           placeholder="John Doe" />
                       {#if errors.name}
                         <p class="emc:text-red-500 emc:text-[14px]">
@@ -271,7 +316,7 @@
       
                   <!-- Email -->
                   <div>
-                      <label for="email" class="emc:block emc:text-gray-600 emc:font-medium emc:text-[16px]">Email Address</label>
+                      <label for="email" class="emc:block emc:font-medium emc:text-[16px]">Email Address</label>
                       <input id="email" type="email" bind:value={email} required
                           class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px]" 
                           placeholder="john@example.com" />
@@ -284,7 +329,7 @@
       
                   <!-- Phone -->
                   <div>
-                      <label class="emc:block emc:text-gray-600 emc:font-medium emc:text-[16px]" for="phone">Phone Number</label>
+                      <label class="emc:block emc:font-medium emc:text-[16px]" for="phone">Phone Number</label>
                       <input id="phone" type="tel" bind:value={phone} required
                           class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px]" 
                           placeholder="+1 234 567 8901" />
@@ -296,12 +341,21 @@
                   </div>
       
                   <!-- Submit Button -->
-                  <button 
+                  {#if loading}
+                    <button 
+                      type="submit"
+                      class="emc:w-full emc:text-white emc:font-semibold emc:py-2 emc:rounded-lg emc:transition emc:duration-300 emc:text-[16px] emc:cursor-pointer"
+                      style={`background-color:${chatButtonColor};`}>
+                        Please wait ....
+                    </button>
+                  {:else}
+                    <button 
                     type="submit"
-                    class="emc:w-full emc:text-white emc:font-semibold emc:py-1 emc:rounded-lg emc:transition emc:duration-300 emc:text-[16px] emc:cursor-pointer"
+                    class="emc:w-full emc:text-white emc:font-semibold emc:py-2 emc:rounded-lg emc:transition emc:duration-300 emc:text-[16px] emc:cursor-pointer"
                     style={`background-color:${chatButtonColor};`}>
                       Start Chat
                   </button>
+                {/if}
               </form>
           </div>
           </div>          
