@@ -2,10 +2,10 @@
   import {onMount} from "svelte";
   import {sendRequestToApi, getGreeting, WebSocketManager, validatePhoneNumber} from "./lib/helper.js";
   import {ChatSessionDB} from "./lib/db.js";
+  import './chat.css';
 
   let nonce = emmerceChatbot.nonce;
   const clientId = emmerceChatbot.clientId;
-  const chatHandler = emmerceChatbot.chatHandler;
   let isOpen = $state( emmerceChatbot.isOpen ? emmerceChatbot.isOpen : false );
   let chatButtonColor = $state(null);
   let loading = $state(false);
@@ -54,14 +54,6 @@
       "from_bot": true
     };
 
-    /*setInterval(() => {
-      const now = new Date().getTime();
-      const span = now - userData.session_start;
-      if(span > 5000) {
-        chatStarted = false;
-        showChatStatus = true;
-      }
-    },1000);*/
   });
 
   /**
@@ -415,7 +407,7 @@
                 onkeydown={handleKeyDown}
                 bind:this={inputElement}>
               <button 
-                class="emc:text-white emc:px-4 emc:py-2 emc:rounded-r-md emc:hover:bg-blue-600 emc:transition emc:duration-300 emc:leading-none" 
+                class={`emc:text-white emc:px-4 emc:py-2 emc:rounded-r-md emc:transition emc:duration-300 emc:leading-none emc:ring emc:cursor-pointer`} 
                 onclick={sendMessage}
                 style={`background-color: ${chatButtonColor};`}>Send</button>
           </div>
