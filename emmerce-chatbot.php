@@ -119,7 +119,8 @@ final class EmmerceChatBot {
                     'clientId'      => esc_attr(get_option('emmerce_chat_client_id')),
                     'chatHandler'   => esc_attr(get_option('emmerce_chat_handler')),
                     'accessUrl'     => WP_DEBUG ? 'https://demoinfinity.emmerce.io/api/v1' : 'https://infinity.emmerce.co.ke/api/v1',
-                    'nonce'         => wp_create_nonce('emmerce_chat_nonce')
+                    'nonce'         => wp_create_nonce('emmerce_chat_nonce'),
+                    'businessName'  => get_bloginfo('name')
                 ]
             );
         }

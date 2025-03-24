@@ -9,7 +9,7 @@
   let chatButtonColor = $state(null);
   let chatButtonHover = $state(null);
   let chatButtonPingColor = $state(null);
-  let business_name = "Our website";
+  let business_name = emmerceChatbot.businessName;
   let greetings = getGreeting();
   let messages = $state([]);
   
