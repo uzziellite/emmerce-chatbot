@@ -1,6 +1,6 @@
 <script>
   import {onMount} from "svelte";
-  import {sendRequestToApi} from "./lib/helper.js";
+  import {sendRequestToApi, getGreeting} from "./lib/helper.js";
 
   let nonce = emmerceChatbot.nonce;
   const clientId = emmerceChatbot.clientId;
@@ -8,14 +8,11 @@
   let isOpen = $state( emmerceChatbot.isOpen ? emmerceChatbot.isOpen : false );
   let chatButtonColor = $state(null);
   let chatButtonHover = $state(null);
+  let chatButtonPingColor = $state(null);
   let business_name = "Our website";
-  let messages = $state([
-    {
-      "content":`Welcome to ${business_name}. How can I assist you today?`,
-      "from_bot": true
-    }
-  ]);
-
+  let greetings = getGreeting();
+  let messages = $state([]);
+  
   let chatStarted = $state(false);
   let showChatStatus = $state(false);
   let conversation = $state('');
@@ -23,6 +20,7 @@
   let email = $state("");
   let phone = $state("");
   let errors = {};
+  let initialChat;
   const position = emmerceChatbot.position;
   const endpoint = emmerceChatbot.ajaxurl;
   const positionPrefix = position === 'right' ? 'r' : 'l';
@@ -45,6 +43,11 @@
       "phone":phone,
       "session_active": true,
       "session_start": new Date().getTime()
+    };
+
+    initialChat = {
+      "content":`${greetings} ${name}. Welcome to ${business_name}. How can I assist you today?`,
+      "from_bot": true
     };
 
     /*setInterval(() => {
@@ -80,6 +83,7 @@
 
     localStorage.setItem('user_data', JSON.stringify(userData));
     chatStarted = true;
+    messages.push(initialChat);
 
     const audio = new Audio(emmerceChatbot.snapSound);
     audio.play();
@@ -111,14 +115,14 @@
      */
      await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/labels/${clientId}`, nonce,'GET')
     .then(apiResponse => {
-      console.log('API Response:', apiResponse);
-      
       const getChatColor = (data) => {
         for (let i = 0; i < data.length; i++) {
           if (data[i].label_name === "ChatButton") {
             chatButtonColor = data[i].color;
           } else if(data[i].label_name === "ChatButtonHover"){
             chatButtonHover = data[i].color;
+          } else if(data[i].label_name === "ChatButtonPingColor"){
+            chatButtonPingColor = data[i].color;
           }
         }
         return '#000000';
@@ -169,8 +173,8 @@
 
       <!-- Pinging Dot -->
       <span class="emc:absolute emc:bottom-0 emc:right-0 emc:-mb-1 emc:mr-2 emc:flex emc:h-3 emc:w-3">
-          <span class="emc:animate-ping emc:absolute emc:inline-flex emc:h-full emc:w-full emc:rounded-full emc:bg-red-500 emc:opacity-75"></span>
-          <span class="emc:relative emc:inline-flex emc:rounded-full emc:h-3 emc:w-3 emc:bg-red-500"></span>
+          <span class="emc:animate-ping emc:absolute emc:inline-flex emc:h-full emc:w-full emc:rounded-full emc:opacity-75" style={`background-color:${chatButtonPingColor};`}></span>
+          <span class="emc:relative emc:inline-flex emc:rounded-full emc:h-3 emc:w-3" style={`background-color:${chatButtonPingColor};`}></span>
       </span>
     </button>
   {:else}
@@ -185,7 +189,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="emc:size-6">
         <path stroke-linecap="round" stroke-linejoin="round" d="M11.99 7.5 8.24 3.75m0 0L4.49 7.5m3.75-3.75v16.499h11.25" />
       </svg>
-      <span class="emc:text-gray-700 emc:font-medium emc:font-[Inter]">
+      <span class="emc:text-gray-700 emc:font-medium emc:font-[Inter] emc:text-[16px]">
         {chatTitle}
       </span>
       <!-- Close Button -->
@@ -199,9 +203,17 @@
 {#if isOpen}
   <div class={`emc:fixed emc:bottom-20 emc:right-0 emc:sm:right-4 emc:w-full emc:sm:w-96 emc:z-[9999] emc:pr-0 emc:sm:pr-2`}>
     <div class="emc:bg-white/80 emc:backdrop-blur-md emc:shadow-2xl emc:rounded-lg emc:sm:max-w-lg emc:w-full emc:mx-2 emc:sm:mx-auto">
-        <div class="emc:px-4 emc:py-2 emc:border-b emc:bg-blue-500 emc:text-white emc:rounded-t-lg emc:flex emc:justify-between emc:items-center">
-            <p class="emc:text-lg emc:font-semibold">{chatTitle}</p>
-            <button aria-label="Close" class="emc:text-gray-300 emc:hover:text-white emc:focus:outline-none emc:focus:text-gray-400" onclick={() => isOpen = !isOpen}>
+        <div 
+          class="emc:px-4 emc:py-2 emc:border-b emc:text-white emc:rounded-t-lg emc:flex emc:justify-between emc:items-center"
+          style={`background-color: ${chatButtonColor};`}>
+            <a 
+              class="emc:text-lg emc:font-semibold emc:no-underline"
+              href="https://emmerce.io"
+              target="_blank">{chatTitle}</a>
+            <button 
+              aria-label="Close" 
+              class="emc:text-gray-300 emc:hover:text-white emc:focus:outline-none emc:focus:text-gray-400 emc:cursor-pointer" 
+              onclick={() => isOpen = !isOpen}>
                 <svg xmlns="http://www.w3.org/2000/svg" class="emc:w-6 emc:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -241,17 +253,17 @@
         {:else}
           <div class="emc:flex emc:justify-center emc:items-center">
             <div class="emc:py-2 emc:px-4 emc:w-full">
-              <h2 class="emc:font-semibold emc:text-gray-700 emc:text-center emc:mb-4">Customer Information</h2>
+              <h2 class="emc:font-semibold emc:text-gray-700 emc:text-center emc:mb-4 emc:text-[18px]">Customer Information</h2>
       
               <form onsubmit={submitForm} class="emc:space-y-4">
                   <!-- Name -->
                   <div>
-                      <label for="name" class="emc:block emc:text-gray-600 emc:font-medium">Full Name</label>
+                      <label for="name" class="emc:block emc:text-gray-600 emc:font-medium emc:text-[16px]">Full Name</label>
                       <input id="name" type="text" bind:value={name} required
-                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition" 
+                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px]" 
                           placeholder="John Doe" />
                       {#if errors.name}
-                        <p class="emc:text-red-500">
+                        <p class="emc:text-red-500 emc:text-[14px]">
                           {errors.name}
                         </p>
                       {/if}
@@ -259,12 +271,12 @@
       
                   <!-- Email -->
                   <div>
-                      <label for="email" class="emc:block emc:text-gray-600 emc:font-medium">Email Address</label>
+                      <label for="email" class="emc:block emc:text-gray-600 emc:font-medium emc:text-[16px]">Email Address</label>
                       <input id="email" type="email" bind:value={email} required
-                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition" 
+                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px]" 
                           placeholder="john@example.com" />
                       {#if errors.email}
-                        <p class="emc:text-red-500">
+                        <p class="emc:text-red-500 emc:text-[14px]">
                           {errors.email}
                         </p>
                       {/if}
@@ -272,20 +284,22 @@
       
                   <!-- Phone -->
                   <div>
-                      <label class="emc:block emc:text-gray-600 emc:font-medium" for="phone">Phone Number</label>
+                      <label class="emc:block emc:text-gray-600 emc:font-medium emc:text-[16px]" for="phone">Phone Number</label>
                       <input id="phone" type="tel" bind:value={phone} required
-                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition" 
+                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px]" 
                           placeholder="+1 234 567 8901" />
                       {#if errors.phone}
-                        <p class="emc:text-red-500">
+                        <p class="emc:text-red-500 emc:text-[14px]">
                           {errors.phone}
                         </p>
                       {/if}
                   </div>
       
                   <!-- Submit Button -->
-                  <button type="submit"
-                      class="emc:w-full emc:bg-blue-500 emc:text-white emc:font-semibold emc:py-1 emc:rounded-lg emc:hover:bg-blue-600 emc:transition emc:duration-300">
+                  <button 
+                    type="submit"
+                    class="emc:w-full emc:text-white emc:font-semibold emc:py-1 emc:rounded-lg emc:transition emc:duration-300 emc:text-[16px] emc:cursor-pointer"
+                    style={`background-color:${chatButtonColor};`}>
                       Start Chat
                   </button>
               </form>
@@ -301,7 +315,10 @@
                 bind:value={conversation}
                 onkeydown={handleKeyDown}
                 bind:this={inputElement}>
-              <button class="emc:bg-blue-500 emc:text-white emc:px-4 emc:py-2 emc:rounded-r-md emc:hover:bg-blue-600 emc:transition emc:duration-300 emc:leading-none" onclick={sendMessage}>Send</button>
+              <button 
+                class="emc:text-white emc:px-4 emc:py-2 emc:rounded-r-md emc:hover:bg-blue-600 emc:transition emc:duration-300 emc:leading-none" 
+                onclick={sendMessage}
+                style={`background-color: ${chatButtonColor};`}>Send</button>
           </div>
         {/if}
     </div>

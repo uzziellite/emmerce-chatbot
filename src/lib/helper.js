@@ -57,3 +57,21 @@ export const sendRequestToApi = (endpoint, url, nonce, method, payload = {}) => 
         });
     });
 }
+
+/**
+ * Return customized greetings to the user based on the time of the day
+ */
+export const getGreeting = () => {
+  const now = new Date();
+  const hour = now.getHours();
+
+  if (hour >= 3 && hour < 12) {
+    return "Good morning";
+  } else if (hour >= 12 && hour < 17) {
+    return "Good afternoon";
+  } else if (hour >= 17 && hour < 22) {
+    return "Good evening";
+  } else {
+    return "Good night";
+  }
+}
