@@ -114,7 +114,8 @@ final class EmmerceChatBot {
                     'accessUrl'     => WP_DEBUG ? 'https://demoinfinity.emmerce.io/api/v1' : 'https://infinity.emmerce.co.ke/api/v1',
                     'nonce'         => wp_create_nonce('emmerce_chat_nonce'),
                     'businessName'  => get_bloginfo('name'),
-                    'api_key'       => esc_attr(get_option('emmerce_api_key'))
+                    'api_key'       => esc_attr(get_option('emmerce_api_key')),
+                    'ws'            => WP_DEBUG ? 'wss://demoinfinity.emmerce.io/ws' : 'wss://infinity.emmerce.co.ke/ws'
                 ]
             );
         }
@@ -374,15 +375,15 @@ final class EmmerceChatBot {
         if( $method === 'GET' ){
             $response = wp_remote_get($api_url, array(
                 'headers' => array(
-                    'Content-Type' => 'application/json',
-                    'Authorization' => 'Bearer ' . $api_key,
+                    'Content-Type'  => 'application/json',
+                    'X-API-Key'     => $api_key,
                 )
             ));
         } else if ($method === 'POST') {
             $response = wp_remote_post($api_url, array(
                 'headers' => array(
-                    'Content-Type' => 'application/json',
-                    'Authorization' => 'Bearer ' . $api_key,
+                    'Content-Type'  => 'application/json',
+                    'X-API-Key'     => $api_key,
                 ),
                 'body' => str_replace('\\', '', $data)
             ));

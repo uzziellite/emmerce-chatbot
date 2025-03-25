@@ -12,12 +12,14 @@ export const sendRequestToApi = (endpoint, url, nonce, method, payload = {}) => 
     
     if(method === 'GET'){
       const keys = Object.keys(payload);
-      destination += `?${keys[0]}=${payload[keys[0]]}`;
-      keys.forEach((item,index) => {
-        if(index !== 0){
-          destination += `&${item}=${payload[item]}`
-        }
-      });
+      if( keys.length > 0 ){
+        destination += `?${keys[0]}=${payload[keys[0]]}`;
+        keys.forEach((item,index) => {
+          if(index !== 0){
+            destination += `&${item}=${payload[item]}`
+          }
+        });
+      }
     } else if (method === 'POST') {
       data = JSON.stringify(payload);
     }
