@@ -288,6 +288,7 @@
 
       websocket.addMessageListener((message) => {
         if(message.sender == 'business'){
+          
           const data = {
             "content": message.message,
             "from_bot": true
@@ -295,8 +296,11 @@
           messages = [...messages, data];
 
           manageChatSession(sessionKey, data);
+          
+          const audio = new Audio(emmerceChatbot.snapSound);
+          audio.play();
+
         }
-        console.log('Received message:', message);
       });
   
       websocket.addErrorListener((error) => {
