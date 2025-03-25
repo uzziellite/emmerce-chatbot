@@ -26,14 +26,14 @@
   let initialChat;
   const position = emmerceChatbot.position;
   const endpoint = emmerceChatbot.ajaxurl;
-  const positionPrefix = position === 'right' ? 'r' : 'l';
   let inputElement = $state(null);
   let chatContainer = $state(null);
   let userData = $state(null);
   const chatSessionDB = new ChatSessionDB();
-  let sessionKey = $state("");
+  let sessionKey = $state(null);
   let websocketStr = $state("");
-  let websocket;
+  let websocket = $state(null);
+  let chatSessionIsActive = $state(false);
 
   /**
    * Handle dynamic updates
@@ -50,8 +50,8 @@
     };
 
     initialChat = {
-      "content":`${greetings} ${name}. Welcome to ${business_name}. How can I assist you today?`,
-      "from_bot": true
+      "content":`Hello`,
+      "from_bot": false
     };
 
     if( sessionKey ){
@@ -95,6 +95,18 @@
   }
 
   /**
+   * Delete chat session
+  */
+  const deleteChatSession = async (sessionId) => {
+    try {
+      await chatSessionDB.deleteDatabase(sessionId);
+      console.log('Session deleted:', sessionId);
+    } catch (error) {
+      console.error('Error deleting chat session:', error);
+    }
+  }
+
+  /**
    * Get user data so that you can tell who you are chatting with
    * Enables the Emmerce App Subscriber to tell who it is they are talking to
    */
@@ -126,6 +138,7 @@
         userData.session_active = true;
         localStorage.setItem('user_data', JSON.stringify(userData));
         chatStarted = true;
+        showChatStatus = false;
         messages.push(initialChat);
         manageChatSession(userData.session_id, initialChat);
         
@@ -148,21 +161,35 @@
     if(conversation.trim() === ""){
       return;
     }
-
-    //websocket.send({ type: 'message', content: 'Hello, server!' });
-
+    
     const data = {
       "content": conversation,
       "from_bot": false
     }
-
+    
     messages = [...messages, data];
-    conversation = "";
-
+    
     const audio = new Audio(emmerceChatbot.popSound);
     audio.play();
+    
+    
+    const params = {
+      "session_id": sessionKey,
+      "message": conversation,
+      "sender": "customer",
+      "message_type": "text"
+    }
+    
+    conversation = "";
 
-    manageChatSession(sessionKey, data);
+    sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/send-website-message/${clientId}/`, nonce, 'POST', params)
+    .then(apiResponse => {
+      console.log(apiResponse)
+      manageChatSession(sessionKey, data);
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
   }
 
   /**
@@ -174,6 +201,38 @@
     } catch(error){
         console.error("Error retrieving transcript: ", error);
     }
+  }
+
+  /**
+   * Check session validity
+  */
+  const checkChatSessionValidity = async(sessionId) => {
+    return await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/website-check-session-validity/${sessionId}/`, nonce,'GET');
+  }
+
+  /**
+   * Client terminate chat session
+  */
+  const terminateChat = async () => {
+    loading = true;
+    await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/website-client-resolve-session/${sessionKey}/`, nonce,'POST')
+    .then(apiResponse => {
+      console.log(apiResponse)
+      chatSessionIsActive = false;
+      chatStarted = false;
+      showChatStatus = true;
+      localStorage.removeItem('user_data');
+      deleteChatSession(sessionKey);
+      messages = [];
+      loading = false;
+      name = "";
+      email = "";
+      phone = "";
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      loading = false;
+    });
   }
 
   onMount(async () => {
@@ -207,8 +266,10 @@
       email = data.email;
       phone = data.phone;
       sessionKey = data.session_id;
+      const chatStatus =  await checkChatSessionValidity(sessionKey);
+      chatSessionIsActive = chatStatus.status;
 
-      if(data.session_active){
+      if(chatStatus.status){
         chatStarted = true;
         showChatStatus = false;
         const transcript = await getTranscript(sessionKey);
@@ -221,32 +282,44 @@
     }
 
     /**
-     * Handle websocket messages
+     * Handle websocket messages when the socket is ready
     */
-    websocket.addMessageListener((message) => {
-      console.log('Received message:', message);
-    });
+    if(websocket){
 
-    websocket.addErrorListener((error) => {
-      console.error('WebSocket error:', error);
-    });
+      websocket.addMessageListener((message) => {
+        if(message.sender == 'business'){
+          const data = {
+            "content": message.message,
+            "from_bot": true
+          }
+          messages = [...messages, data];
 
-    websocket.addConnectListener(() => {
-        console.log("websocket connected");
-    });
-
-    websocket.addDisconnectListener(() => {
-        console.log("websocket disconnected");
-    });
+          manageChatSession(sessionKey, data);
+        }
+        console.log('Received message:', message);
+      });
+  
+      websocket.addErrorListener((error) => {
+        console.error('WebSocket error:', error);
+      });
+  
+      websocket.addConnectListener(() => {
+          console.log("websocket connected");
+      });
+  
+      websocket.addDisconnectListener(() => {
+          console.log("websocket disconnected");
+      });
+    }
   });
 </script>
 
-<div class={`emc:fixed emc:bottom-0 emc:right-1 emc:mb-4 emc:mr-4 emc:z-50`}>
+<div class={`emc:fixed emc:bottom-0 emc:mb-4 emc:z-50 ${position === 'right' ? 'emc:right-1 emc:mr-4' : 'emc:left-1 emc:ml-4'}`}>
   {#if !isOpen}
     <button 
       style={`background-color: ${chatButtonColor};`} 
       onclick={() => isOpen = !isOpen} 
-      class={`emc:relative emc:text-white emc:py-2 emc:px-4 emc:rounded-4xl emc:transition emc:duration-300 emc:flex emc:items-center emc:space-x-2 emc:cursor-pointer`}>
+      class={`emc:relative emc:text-white emc:py-2 emc:px-4 emc:rounded-4xl emc:transition emc:duration-300 emc:flex emc:items-center emc:space-x-2 emc:cursor-pointer emc:leading-none`}>
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="emc:size-6 emc:animate-wiggle">
         <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 0 1 .778-.332 48.294 48.294 0 0 0 5.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
       </svg>
@@ -264,7 +337,7 @@
     </button>
   {:else}
     <!-- Active Chat Indicator -->
-    <button class="emc:flex emc:items-center emc:bg-white/60 emc:backdrop-blur-md emc:border emc:border-gray-200 emc:shadow-lg emc:px-4 emc:py-2 emc:rounded-full emc:space-x-3 emc:cursor-pointer" onclick={() => isOpen = false}>
+    <button class="emc:flex emc:items-center emc:bg-white/60 emc:backdrop-blur-md emc:border emc:border-gray-200 emc:shadow-lg emc:px-4 emc:py-2 emc:rounded-full emc:space-x-3 emc:cursor-pointer emc:leading-none" onclick={() => isOpen = false}>
       <!-- Glowing Active Dot -->
       <span class="emc:relative emc:flex emc:h-3 emc:w-3">
           <span class="emc:animate-ping emc:absolute emc:inline-flex emc:h-full emc:w-full emc:rounded-full emc:bg-green-500 emc:opacity-75"></span>
@@ -283,7 +356,7 @@
 </div>
 
 {#if isOpen}
-  <div class={`emc:fixed emc:bottom-20 emc:right-0 emc:sm:right-4 emc:w-full emc:sm:w-96 emc:z-[9999] emc:pr-0 emc:sm:pr-2`}>
+  <div class={`emc:fixed emc:bottom-20 emc:w-full emc:sm:w-96 emc:z-[9999] ${position === 'right' ? 'emc:pr-0 emc:sm:pr-2 emc:right-0 emc:sm:right-4' : 'emc:pl-0 emc:sm:pl-2 emc:left-0 emc:sm:left-4'}`}>
     <div class="emc:bg-white/80 emc:backdrop-blur-md emc:shadow-2xl emc:rounded-lg emc:sm:max-w-lg emc:w-full emc:mx-2 emc:sm:mx-auto">
         <!--Main widget title-->
         <div 
@@ -302,7 +375,7 @@
             </div>
             <button 
               aria-label="Close" 
-              class="emc:text-gray-300 emc:hover:text-white emc:focus:outline-none emc:focus:text-gray-400 emc:cursor-pointer" 
+              class="emc:text-gray-300 emc:hover:text-white emc:focus:outline-none emc:focus:text-gray-400 emc:cursor-pointer emc:leading-none" 
               onclick={() => isOpen = !isOpen}>
                 <svg xmlns="http://www.w3.org/2000/svg" class="emc:w-6 emc:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -329,14 +402,21 @@
         {:else if !chatStarted && showChatStatus}
           <div class="emc:flex emc:justify-center emc:items-center emc:h-72 emc:overflow-y-auto">
             <div class="emc:py-2 emc:px-4 emc:w-full">
-              <h2 class="emc:text-md emc:text-gray-700 emc:text-center emc:mb-4">Welcome Back, {name}</h2>
+              <h2 class="emc:text-md emc:text-gray-700 emc:text-center emc:mb-4 emc:text-[24px]">Welcome Back, {name}</h2>
               <div class="emc:flex  emc:justify-center emc:items-center emc:space-x-4">
-                <button class="emc:p-2 emc:mb-4 emc:bg-stone-900 emc:rounded-lg emc:text-md emc:text-white emc:cursor-pointer">
-                  Load Chats
-                </button>
-                <button class="emc:p-2 emc:mb-4 emc:bg-blue-500 emc:text-white emc:rounded-lg emc:text-md emc:cursor-pointer" onclick={submitForm}>
-                  Start New Chat
-                </button>
+                {#if loading}
+                  <button 
+                    class="emc:p-2 emc:mb-4 emc:text-white emc:rounded-lg emc:text-md emc:cursor-pointer emc:leading-none emc:text-[16px]"
+                    style={`background-color:${chatButtonColor};`}>
+                    Please wait ....
+                  </button>
+                {:else}
+                  <button 
+                    class="emc:p-2 emc:mb-4 emc:text-white emc:rounded-lg emc:text-md emc:cursor-pointer emc:leading-none emc:text-[16px]" onclick={submitForm}
+                    style={`background-color:${chatButtonColor};`}>
+                    Start Conversation
+                  </button>
+                {/if}
               </div>
             </div>
           </div>
@@ -348,9 +428,9 @@
               <form onsubmit={submitForm} class="emc:space-y-4">
                   <!-- Name -->
                   <div>
-                      <label for="name" class="emc:block emc:font-medium emc:text-[16px]">Full Name</label>
+                      <label for="name" class="emc:block emc:font-medium emc:text-[16px] emc:mb-0">Full Name</label>
                       <input id="name" type="text" bind:value={name} required
-                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px] emc:text-black" 
+                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px] emc:text-black emc:mb-0" 
                           placeholder="John Doe" />
                       {#if errors.name}
                         <p class="emc:text-red-500 emc:text-[14px]">
@@ -361,9 +441,9 @@
       
                   <!-- Email -->
                   <div>
-                      <label for="email" class="emc:block emc:font-medium emc:text-[16px]">Email Address</label>
+                      <label for="email" class="emc:block emc:font-medium emc:text-[16px] emc:mb-0">Email Address</label>
                       <input id="email" type="email" bind:value={email} required
-                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px]" 
+                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px] emc:mb-0" 
                           placeholder="john@example.com" />
                       {#if errors.email}
                         <p class="emc:text-red-500 emc:text-[14px]">
@@ -374,9 +454,9 @@
       
                   <!-- Phone -->
                   <div>
-                      <label class="emc:block emc:font-medium emc:text-[16px]" for="phone">Phone Number</label>
+                      <label class="emc:block emc:font-medium emc:text-[16px] emc:mb-0" for="phone">Phone Number</label>
                       <input id="phone" type="tel" bind:value={phone} required
-                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px]" 
+                          class="emc:w-full emc:p-1 emc:border emc:border-gray-300 emc:rounded-lg emc:focus:ring-2 emc:focus:ring-blue-400 emc:focus:outline-none emc:transition emc:text-[16px] emc:mb-0" 
                           placeholder="+1 234 567 8901" />
                       {#if errors.phone}
                         <p class="emc:text-red-500 emc:text-[14px]">
@@ -389,14 +469,14 @@
                   {#if loading}
                     <button 
                       type="submit"
-                      class="emc:w-full emc:text-white emc:font-semibold emc:py-2 emc:rounded-lg emc:transition emc:duration-300 emc:text-[16px] emc:cursor-pointer"
+                      class="emc:w-full emc:text-white emc:font-semibold emc:py-2 emc:rounded-lg emc:transition emc:duration-300 emc:text-[16px] emc:cursor-pointer emc:leading-none"
                       style={`background-color:${chatButtonColor};`}>
                         Please wait ....
                     </button>
                   {:else}
                     <button 
                     type="submit"
-                    class="emc:w-full emc:text-white emc:font-semibold emc:py-2 emc:rounded-lg emc:transition emc:duration-300 emc:text-[16px] emc:cursor-pointer"
+                    class="emc:w-full emc:text-white emc:font-semibold emc:py-2 emc:rounded-lg emc:transition emc:duration-300 emc:text-[16px] emc:cursor-pointer emc:leading-none emc:mb-0"
                     style={`background-color:${chatButtonColor};`}>
                       Start Chat
                   </button>
@@ -406,7 +486,7 @@
           </div>          
         {/if}
         {#if chatStarted}
-          <div class="emc:p-6 emc:border-t emc:flex">
+          <div class="emc:px-6 emc:py-2 emc:border-t emc:flex">
               <input 
                 type="text" 
                 placeholder="Type a message" 
@@ -418,6 +498,19 @@
                 class={`emc:text-white emc:px-4 emc:py-2 emc:rounded-r-md emc:transition emc:duration-300 emc:leading-none emc:ring emc:cursor-pointer`} 
                 onclick={sendMessage}
                 style={`background-color: ${chatButtonColor};`}>Send</button>
+          </div>
+          <div class="emc:flex emc:align-center emc:justify-center emc:pb-1">
+            {#if loading}
+              <span class="emc:text-gray-500 emc:text-[14px]">
+                Please wait ...
+              </span>
+            {:else}
+              <button
+                class="emc:text-black emc:cursor-pointer emc:leading-none emc:text-[14px] emc:text-underline emc:py-0 emc:mb-0"
+                onclick={terminateChat}>
+                  End Chat
+              </button>
+            {/if}
           </div>
         {/if}
     </div>

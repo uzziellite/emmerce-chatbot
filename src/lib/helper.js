@@ -93,6 +93,7 @@ export class WebSocketManager {
     this.connectListeners = [];
     this.disconnectListeners = [];
     this.reconnectTimeout = null;
+    this.messageTypeListeners = {};
 
     this.connect();
   }
@@ -115,6 +116,9 @@ export class WebSocketManager {
       try {
         const data = JSON.parse(event.data);
         this.messageListeners.forEach((listener) => listener(data));
+        if (data && data.type && this.messageTypeListeners[data.type]) {
+          this.messageTypeListeners[data.type].forEach((listener) => listener(data));
+        }
       } catch (e) {
         this.messageListeners.forEach((listener) => listener(event.data));
       }
@@ -157,6 +161,13 @@ export class WebSocketManager {
 
    addDisconnectListener(listener) {
     this.disconnectListeners.push(listener);
+  }
+
+  addMessageTypeListener(messageType, listener) {
+    if (!this.messageTypeListeners[messageType]) {
+      this.messageTypeListeners[messageType] = [];
+    }
+    this.messageTypeListeners[messageType].push(listener);
   }
 
   close(){
