@@ -566,7 +566,7 @@
           </div>
         {:else}
           <div class="emc:flex emc:justify-center emc:items-center emc:pb-1">
-            <span class="emc:text-gray-500 emc:text-[14px]">
+            <span class="emc:text-red-500 emc:text-[14px]">
               Chat Disconnected
             </span>
           </div>
