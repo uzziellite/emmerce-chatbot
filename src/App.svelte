@@ -219,7 +219,7 @@
    * Check session validity
   */
   const checkChatSessionValidity = async(sessionId) => {
-    return await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/website-check-session-validity/${sessionId}/`, nonce,'GET');
+    return await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/website-check-session-validity/${sessionId}/${clientId}`, nonce,'GET');
   }
 
   /**
@@ -227,7 +227,7 @@
   */
   const terminateChat = async () => {
     loading = true;
-    await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/website-client-resolve-session/${sessionKey}/`, nonce,'POST')
+    await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/website-client-resolve-session/${sessionKey}/${clientId}`, nonce,'POST')
     .then(apiResponse => {
       console.log(apiResponse)
       chatSessionIsActive = false;
