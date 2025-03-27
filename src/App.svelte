@@ -1,6 +1,6 @@
 <script>
   import {onMount} from "svelte";
-  import {sendRequestToApi, getGreeting, WebSocketManager, validatePhoneNumber} from "./lib/helper.js";
+  import {sendRequestToApi, WebSocketManager, validatePhoneNumber} from "./lib/helper.js";
   import {ChatSessionDB} from "./lib/db.js";
   import './chat.css';
 
@@ -287,7 +287,7 @@
         const transcript = await getTranscript(sessionKey);
         messages = transcript.messages;
       }else{
-        showChatStatus = true;
+        showChatStatus = false;
         chatStarted = false;
       }
 
