@@ -34,6 +34,7 @@
   let retryCount = 0;
   const maxRetries = 10;
   let isSending = $state(false);
+  let chatDisconnected = $state(false);
 
   /**
    * Handle dynamic updates
@@ -299,7 +300,13 @@
 
       websocket.addMessageListener((message) => {
         if(message.sender == 'business'){
+          const length = messages.length - 1;
           
+          //Avoid duplicate messages
+          if(messages[length].content === message.message){
+            return;
+          }
+
           const data = {
             "content": message.message,
             "from_bot": true
@@ -320,10 +327,12 @@
   
       websocket.addConnectListener(() => {
           console.log("websocket connected");
+          chatDisconnected = false;
       });
   
       websocket.addDisconnectListener(() => {
           console.log("websocket disconnected");
+          chatDisconnected = true;
       });
     }
   });
@@ -528,7 +537,7 @@
           </div>
           </div>          
         {/if}
-        {#if chatStarted}
+        {#if chatStarted && !chatDisconnected}
           <div class="emc:px-6 emc:py-2 emc:border-t emc:flex">
               <input 
                 type="text" 
@@ -554,6 +563,12 @@
                   End Chat
               </button>
             {/if}
+          </div>
+        {:else}
+          <div class="emc:flex emc:justify-center emc:items-center emc:pb-1">
+            <span class="emc:text-gray-500 emc:text-[14px]">
+              Chat Disconnected
+            </span>
           </div>
         {/if}
     </div>
