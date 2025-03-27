@@ -11,11 +11,8 @@
   let loading = $state(false);
   let chatButtonHover = $state(null);
   let chatButtonPingColor = $state(null);
-  let business_name = emmerceChatbot.businessName;
-  let greetings = getGreeting();
   let messages = $state([]);
   let chatSettings = $state({});
-  
   let chatStarted = $state(false);
   let showChatStatus = $state(false);
   let conversation = $state('');
@@ -34,6 +31,9 @@
   let websocketStr = $state("");
   let websocket = $state(null);
   let chatSessionIsActive = $state(false);
+  let retryCount = 0;
+  const maxRetries = 10;
+  let isSending = $state(false);
 
   /**
    * Handle dynamic updates
@@ -87,7 +87,7 @@
       }
   
       await chatSessionDB.storeSession(session);
-      console.log('Session updated:', session);
+      //console.log('Session updated:', session);
   
     } catch (error) {
       console.error('Error managing chat session:', error);
@@ -100,7 +100,7 @@
   const deleteChatSession = async (sessionId) => {
     try {
       await chatSessionDB.deleteDatabase(sessionId);
-      console.log('Session deleted:', sessionId);
+      //console.log('Session deleted:', sessionId);
     } catch (error) {
       console.error('Error deleting chat session:', error);
     }
@@ -162,16 +162,13 @@
       return;
     }
     
+    isSending = true;
+    
     const data = {
       "content": conversation,
       "from_bot": false
     }
-    
     messages = [...messages, data];
-    
-    const audio = new Audio(emmerceChatbot.popSound);
-    audio.play();
-    
     
     const params = {
       "session_id": sessionKey,
@@ -181,11 +178,25 @@
     }
     
     conversation = "";
-
+    
     sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/send-website-message/${clientId}/`, nonce, 'POST', params)
     .then(apiResponse => {
       console.log(apiResponse)
-      manageChatSession(sessionKey, data);
+      if(apiResponse.data?.status === "sent"){
+        isSending = false;
+        manageChatSession(sessionKey, data);
+        const audio = new Audio(emmerceChatbot.popSound);
+        audio.play();
+        retryCount = 0;
+      } else if(retryCount < maxRetries){
+        //Chat was not sent, resend the message
+        retryCount++;
+        sendMessage();
+      } else {
+        console.error("Message not sent after multiple retries");
+        isSending = false;
+        messages.pop();
+      }
     })
     .catch(error => {
       console.error('Error:', error);
@@ -341,7 +352,7 @@
     </button>
   {:else}
     <!-- Active Chat Indicator -->
-    <button class="emc:flex emc:items-center emc:bg-white/60 emc:backdrop-blur-md emc:border emc:border-gray-200 emc:shadow-lg emc:px-4 emc:py-2 emc:rounded-full emc:space-x-3 emc:cursor-pointer emc:leading-none" onclick={() => isOpen = false}>
+    <button class="emc:flex emc:items-center emc:bg-white/60 emc:backdrop-blur-md emc:border emc:border-gray-200 emc:shadow-lg emc:px-4 emc:py-2 emc:rounded-full emc:space-x-3 emc:cursor-pointer emc:leading-none emc:z-[9999]" onclick={() => isOpen = false}>
       <!-- Glowing Active Dot -->
       <span class="emc:relative emc:flex emc:h-3 emc:w-3">
           <span class="emc:animate-ping emc:absolute emc:inline-flex emc:h-full emc:w-full emc:rounded-full emc:bg-green-500 emc:opacity-75"></span>
@@ -352,7 +363,7 @@
         {chatSettings.client_name}
       </span>
       <!-- Close Button -->
-      <svg xmlns="http://www.w3.org/2000/svg" class="emc:size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="emc:size-6 emc:text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
       </svg>
     </button>
@@ -370,16 +381,16 @@
               class="emc:text-lg emc:font-semibold emc:no-underline"
               href="https://emmerce.io"
               target="_blank">
-              <span class="emc:text-[28px]">
+              <span class="emc:text-[22px]">
                 {chatSettings.widget_title} <br>
               </span>
-              <span class="emc:text-[20px]">
+              <span class="emc:text-[18px]">
                 {chatSettings.widget_description}
               </span>
             </div>
             <button 
               aria-label="Close" 
-              class="emc:text-gray-300 emc:hover:text-white emc:focus:outline-none emc:focus:text-gray-400 emc:cursor-pointer emc:leading-none" 
+              class="emc:text-gray-300 emc:hover:text-white emc:focus:outline-none emc:focus:text-gray-400 emc:cursor-pointer emc:leading-none emc:bg-transparent emc:border-none" 
               onclick={() => isOpen = !isOpen}>
                 <svg xmlns="http://www.w3.org/2000/svg" class="emc:w-6 emc:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -390,15 +401,43 @@
         {#if chatStarted && !showChatStatus}
           <div class="emc:p-4 emc:h-80 emc:overflow-y-auto" bind:this={chatContainer}>
             <div class="imessage emc:flex emc:flex-col">
-              {#each messages as message}
+              {#each messages as message,index}
                 {#if message.from_bot}
                   <p class={`from-emmerce emc:mb-2 emc:mt-2 emc:text-[16px] font-[Inter]`}>
                     {message.content}
                   </p>
                 {:else}
-                  <p class={`from-client emc:mb-2 emc:mt-2 emc:text-[16px]`}>
-                    {message.content}
-                  </p>
+                  <div class="emc:flex emc:flex-col emc:items-end">
+                    <p class={`from-client emc:text-[16px]`}>
+                      {message.content}
+                    </p>
+                    {#if index === messages.length - 1 && isSending}
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="emc:w-4 emc:h-4 emc:text-gray-400">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                      </svg>
+                    {:else}
+                      <svg 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        stroke="currentColor" 
+                        class="emc:w-4 emc:h-4 emc:text-green-500"
+                      >
+                        <path 
+                          d="M4 12.9L7.14286 16.5L15 7.5" 
+                          stroke-width="1.5" 
+                          stroke-linecap="round" 
+                          stroke-linejoin="round"
+                        />
+                        <path 
+                          d="M20 7.5625L11.4283 16.5625L11 16" 
+                          stroke-width="1.5" 
+                          stroke-linecap="round" 
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    {/if}
+                  </div>
                 {/if}
               {/each}
             </div>
