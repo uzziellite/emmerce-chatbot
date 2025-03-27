@@ -1,6 +1,6 @@
 <script>
   import {onMount} from "svelte";
-  import {sendRequestToApi, getGreeting, WebSocketManager, validatePhoneNumber} from "./lib/helper.js";
+  import {sendRequestToApi, WebSocketManager, validatePhoneNumber} from "./lib/helper.js";
   import {ChatSessionDB} from "./lib/db.js";
   import './chat.css';
 
@@ -35,6 +35,7 @@
   const maxRetries = 10;
   let isSending = $state(false);
   let chatDisconnected = $state(false);
+  let firstLoading = $state(true);
 
   /**
    * Handle dynamic updates
@@ -58,6 +59,10 @@
     if( sessionKey ){
       websocketStr = `${emmerceChatbot.ws}/website-conversation/${sessionKey}/?api_key=${emmerceChatbot.api_key}`
       websocket = new WebSocketManager(websocketStr, { reconnectInterval: 5000 });
+    }
+
+    if(! firstLoading && ! chatSessionIsActive && chatStarted && !loading){
+      terminateChat();
     }
 
   });
@@ -189,6 +194,7 @@
         const audio = new Audio(emmerceChatbot.popSound);
         audio.play();
         retryCount = 0;
+        firstLoading = false;
       } else if(retryCount < maxRetries){
         //Chat was not sent, resend the message
         retryCount++;
@@ -197,6 +203,7 @@
         console.error("Message not sent after multiple retries");
         isSending = false;
         messages.pop();
+        firstLoading = false;
       }
     })
     .catch(error => {
@@ -219,7 +226,7 @@
    * Check session validity
   */
   const checkChatSessionValidity = async(sessionId) => {
-    return await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/website-check-session-validity/${sessionId}/`, nonce,'GET');
+    return await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/website-check-session-validity/${sessionId}/${clientId}`, nonce,'GET');
   }
 
   /**
@@ -227,19 +234,20 @@
   */
   const terminateChat = async () => {
     loading = true;
-    await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/website-client-resolve-session/${sessionKey}/`, nonce,'POST')
+    localStorage.removeItem('user_data');
+    deleteChatSession(sessionKey);
+    name = "";
+    email = "";
+    phone = "";
+    messages = [];
+
+    await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/waba/website-client-resolve-session/${sessionKey}/${clientId}`, nonce,'POST')
     .then(apiResponse => {
       console.log(apiResponse)
       chatSessionIsActive = false;
       chatStarted = false;
-      showChatStatus = true;
-      localStorage.removeItem('user_data');
-      deleteChatSession(sessionKey);
-      messages = [];
+      showChatStatus = false;
       loading = false;
-      name = "";
-      email = "";
-      phone = "";
     })
     .catch(error => {
       console.error('Error:', error);
@@ -286,12 +294,22 @@
         showChatStatus = false;
         const transcript = await getTranscript(sessionKey);
         messages = transcript.messages;
+        firstLoading = false;
       }else{
-        showChatStatus = true;
+        showChatStatus = false;
         chatStarted = false;
+        terminateChat();
       }
 
     }
+
+    //set interval to check if chat session is still active
+    setInterval(async () => {
+      if( chatSessionIsActive ){
+        const chatStatus =  await checkChatSessionValidity(sessionKey);
+        chatSessionIsActive = chatStatus?.status;
+      }
+    }, 10000);
 
     /**
      * Handle websocket messages when the socket is ready
