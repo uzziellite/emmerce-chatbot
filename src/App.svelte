@@ -39,7 +39,7 @@
   /**
    * Handle dynamic updates
    */
-  $effect(() => {
+  $effect(async () => {
     if (chatContainer && messages.length > 0) {
       chatContainer.scrollTop = chatContainer.scrollHeight - chatContainer.clientHeight;
     }
@@ -279,9 +279,9 @@
       phone = data.phone;
       sessionKey = data.session_id;
       const chatStatus =  await checkChatSessionValidity(sessionKey);
-      chatSessionIsActive = chatStatus.status;
+      chatSessionIsActive = chatStatus?.status;
 
-      if(chatStatus.status){
+      if(chatStatus?.status){
         chatStarted = true;
         showChatStatus = false;
         const transcript = await getTranscript(sessionKey);
@@ -331,7 +331,7 @@
       });
   
       websocket.addDisconnectListener(() => {
-          console.log("websocket disconnected");
+          //console.log("websocket disconnected");
           chatDisconnected = true;
       });
     }
