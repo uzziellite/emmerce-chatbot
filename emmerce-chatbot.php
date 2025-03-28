@@ -161,8 +161,10 @@ final class EmmerceChatBot {
     public static function emmerce_chatbot_settings_page() {
         ?>
         <div class="wrap">
-            <h1>Emmerce Chat Settings</h1>
-            <p>Emmerce Chat adds a chat widget to your website to help manage all your website chats together with your conversations from other platforms (Facebook, Whatsapp, Instagram...) from the Emmerce customer portal.</p>
+            <h1><?php _e('Emmerce Chat Settings', 'emmerce-chatbot') ?></h1>
+            <p>
+                <?php _e('Emmerce Chat adds a chat widget to your website to help manage all your website chats together with your conversations from other platforms (Facebook, Whatsapp, Instagram...) from the Emmerce customer portal.', 'emmerce-chatbot') ?>
+            </p>
             <form method="post" action="options.php">
                 <?php
                 settings_fields('emmerce_chatbot_settings_group');
@@ -212,9 +214,9 @@ final class EmmerceChatBot {
         $api_key = get_option('emmerce_api_key');
 
         if (!empty($api_key)) {
-            echo '<p class="notice notice-success">Emmerce Chatbot is ready!</p>';
+            echo '<p class="notice notice-success">'. _e("Emmerce Chatbot is ready!","emmerce-chatbot") .'</p>';
         }else{
-            echo '<p class="notice notice-warning">Please complete your Emmerce Chatbot Configuration</p>';
+            echo '<p class="notice notice-warning">' . _e("Please complete your Emmerce Chatbot Configuration","emmerce-chatbot") . '</p>';
         }
     }
 
@@ -225,7 +227,7 @@ final class EmmerceChatBot {
      * @return void
      */
     public static function emmerce_widget_settings_callback() {
-        echo '<p>Configure the chat widget appearance.</p>';
+        echo '<p>'. _e("Configure the chat widget appearance.","emmerce-chatbot") . '</p>';
     }
 
     /**
