@@ -118,11 +118,11 @@ final class EmmerceChatBot {
                     'snapSound'     => plugin_dir_url(__FILE__). 'src/media/snap.mp3',
                     'popSound'      => plugin_dir_url(__FILE__). 'src/media/pop.mp3',
                     'clientId'      => esc_attr(get_option('emmerce_chat_client_id')),
-                    'accessUrl'     => WP_DEBUG ? 'http://127.0.0.1:8080' : 'https://chat-proxy.emmerce.io',
+                    'accessUrl'     => WP_DEBUG ? 'http://127.0.0.1:8080' : 'https://172.105.52.89:8080',
                     'nonce'         => $chat_nonce,
                     'wsNonce'       => $ws_nonce,
                     'businessName'  => get_bloginfo('name'),
-                    'ws'            => WP_DEBUG ? 'ws://127.0.0.1:8080' : 'wss://chat-proxy.emmerce.io'
+                    'ws'            => WP_DEBUG ? 'ws://127.0.0.1:8080' : 'wss://172.105.52.89:8080'
                 ]
             );
         }
