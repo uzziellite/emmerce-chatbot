@@ -118,12 +118,10 @@ final class EmmerceChatBot {
                     'snapSound'     => plugin_dir_url(__FILE__). 'src/media/snap.mp3',
                     'popSound'      => plugin_dir_url(__FILE__). 'src/media/pop.mp3',
                     'clientId'      => esc_attr(get_option('emmerce_chat_client_id')),
-                    #'accessUrl'     => WP_DEBUG ? 'https://demoinfinity.emmerce.io/api/v1' : 'https://infinity.emmerce.co.ke/api/v1',
                     'accessUrl'     => WP_DEBUG ? 'http://127.0.0.1:8080' : 'https://chat-proxy.emmerce.io',
                     'nonce'         => $chat_nonce,
                     'wsNonce'       => $ws_nonce,
                     'businessName'  => get_bloginfo('name'),
-                    #'api_key'       => esc_attr(get_option('emmerce_api_key')),
                     'ws'            => WP_DEBUG ? 'ws://127.0.0.1:8080' : 'wss://chat-proxy.emmerce.io'
                 ]
             );
