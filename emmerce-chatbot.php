@@ -368,9 +368,9 @@ final class EmmerceChatBot {
             wp_die();
         }
 
-        $data       = $_POST['data'];
+        $data       = isset($_POST['data']) ? wp_unslash($_POST['data']) : '';
         $url        = sanitize_url($_POST['url']);
-        $method     = sanitize_text_field($_POST['method']);
+        $method     = isset($_POST['method']) && in_array(strtoupper($_POST['method']), ['GET', 'POST']) ? strtoupper($_POST['method']) : 'POST';
 
         $api_response = self::send_message_to_api($api_key, $data, $url, $method);
 
@@ -392,22 +392,43 @@ final class EmmerceChatBot {
      * @return array|WP_Error The API response or WP_Error on failure.
      */
     public static function send_message_to_api($api_key, $data, $api_url, $method = "GET") {
-        
-        if( $method === 'GET' ){
-            $response = wp_remote_get($api_url, array(
-                'headers' => array(
-                    'Content-Type'  => 'application/json',
-                    'X-API-Key'     => $api_key,
-                )
-            ));
+        $allowed_endpoints = [
+            'https://demoinfinity.emmerce.io',
+            'https://infinity.emmerce.co.ke',
+            'https://chat-proxy.emmerce.io',
+            'https://chat-proxy.emmerce.co.ke',
+            'https://172.105.52.89',
+            'http://localhost',
+            'http://127.0.0.1',
+        ];
+
+        $is_allowed = false;
+        foreach ($allowed_endpoints as $allowed) {
+            if (strpos($api_url, $allowed) === 0) {
+                $is_allowed = true;
+                break;
+            }
+        }
+
+        if (!$is_allowed) {
+            return new WP_Error('rest_forbidden', 'URL destination is not allowed.', array('status' => 403));
+        }
+
+        $args = array(
+            'headers' => array(
+                'Content-Type'  => 'application/json',
+                'X-API-Key'     => $api_key,
+            ),
+            'timeout' => 15,
+        );
+
+        if ( $method === 'GET' ){
+            $response = wp_remote_get($api_url, $args);
         } else if ($method === 'POST') {
-            $response = wp_remote_post($api_url, array(
-                'headers' => array(
-                    'Content-Type'  => 'application/json',
-                    'X-API-Key'     => $api_key,
-                ),
-                'body' => str_replace('\\', '', $data)
-            ));
+            $args['body'] = str_replace('\\', '', $data);
+            $response = wp_remote_post($api_url, $args);
+        } else {
+            return new WP_Error('invalid_method', 'Invalid request method.');
         }
 
         if (is_wp_error($response)) {
@@ -415,9 +436,7 @@ final class EmmerceChatBot {
         }
 
         $body = wp_remote_retrieve_body($response);
-        $data = json_decode($body, true);
-
-        return $data;
+        return json_decode($body, true);
     }
 
     /**
