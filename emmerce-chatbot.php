@@ -20,6 +20,33 @@ if (!defined('ABSPATH')) {
 }
 
 final class EmmerceChatBot {
+
+    /**
+     * Allowed origins for the chatbot
+     *
+     * @since 1.0.0
+     * @var array $allowed_origins
+     */
+    private static $allowed_origins = [
+        'https://demoinfinity.emmerce.io',
+        'https://infinity.emmerce.co.ke',
+        'https://chat-proxy.emmerce.io',
+        'https://chat-proxy.emmerce.co.ke',
+        'https://172.105.52.89',
+        'http://localhost',
+        'http://127.0.0.1',
+    ];
+
+    private static $allowed_hosts = [
+        'demoinfinity.emmerce.io',
+        'infinity.emmerce.co.ke',
+        'chat-proxy.emmerce.io',
+        'chat-proxy.emmerce.co.ke',
+        '172.105.52.89',
+        'localhost',
+        '127.0.0.1',
+    ];
+
     /**
      * Setup the chatbot
      *
@@ -392,15 +419,7 @@ final class EmmerceChatBot {
      * @return array|WP_Error The API response or WP_Error on failure.
      */
     public static function send_message_to_api($api_key, $data, $api_url, $method = "GET") {
-        $allowed_endpoints = [
-            'https://demoinfinity.emmerce.io',
-            'https://infinity.emmerce.co.ke',
-            'https://chat-proxy.emmerce.io',
-            'https://chat-proxy.emmerce.co.ke',
-            'https://172.105.52.89',
-            'http://localhost',
-            'http://127.0.0.1',
-        ];
+        $allowed_endpoints = self::$allowed_origins;
 
         $is_allowed = false;
         foreach ($allowed_endpoints as $allowed) {
@@ -471,7 +490,7 @@ final class EmmerceChatBot {
      * This function registers a GET route at emmerce/v1/internal/api-key that
      * returns the internal API key for the Emmerce Chatbot.
      *
-     * The permission callback is emmerce_verify_nonce, which verifies that
+     * The permission callback is emmerce_verify_origin, which verifies that
      * the _wpnonce parameter matches the expected value.
      *
      * @since 1.0.0
@@ -480,7 +499,7 @@ final class EmmerceChatBot {
         register_rest_route('emmerce/v1', '/internal/api-key', array(
             'methods' => 'GET',
             'callback' => [__CLASS__, 'emmerce_get_api_key'],
-            'permission_callback' => [__CLASS__, 'emmerce_verify_nonce'],
+            'permission_callback' => [__CLASS__, 'emmerce_verify_origin'],
             'args' => array()
         ));
     }
@@ -496,15 +515,17 @@ final class EmmerceChatBot {
      *
      * @since 1.0.0
      */
-    public static function emmerce_verify_nonce($request) {
-        // Get the nonce from header
-        $nonce = $request->get_header('X-Emmerce-Security');
+    public static function emmerce_verify_origin($request) {
         
-        if (!$nonce) {
-            return new WP_Error('Forbidden', 'No security header found', array('status' => 403));
+        $origin = $request->get_header('host');
+
+        if (!in_array($origin, self::$allowed_hosts)) {
+            return new WP_Error(
+                'rest_forbidden', 
+                'URL destination is not allowed.', 
+                array('status' => 403)
+            );
         }
-        
-        // Add nonce verification later
         
         return true;
     }
