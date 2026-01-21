@@ -1,13 +1,11 @@
 {
   "name": "emmerce-chatbot",
-  "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "translate": "wp i18n make-pot . i18n/languages/emmerce-chatbot.pot --domain=emmerce-chatbot"
+    "preview": "vite preview"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
