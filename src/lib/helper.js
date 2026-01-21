@@ -6,7 +6,7 @@
  * @param method Method that the API will accept
  */
 export const sendRequestToApi = (endpoint, url, nonce, method, payload = {}) => {
-    console.log(endpoint, url, nonce, method, payload);
+    //console.log(endpoint, url, nonce, method, payload);
     let destination = url;
     let data;
     

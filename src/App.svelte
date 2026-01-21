@@ -643,6 +643,7 @@
                 style={`background-color: ${chatButtonColor};`}>Send</button>
           </div>
           <div class="emc:flex emc:align-center emc:justify-center emc:pb-1">
+            <!--Not needed for now but will come in later. Agent terminates the chat for now by voiding this session on the remote chat server.-->
             <!--{#if loading}
               <span class="emc:text-gray-500 emc:text-[14px]">
                 Please wait ...
