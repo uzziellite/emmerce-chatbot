@@ -1,5 +1,7 @@
 # Emmerce Chatbot
 
+This wordpress plugin can be accessed at https://github.com/uzziellite/emmerce-chatbot
+
 A smart, customizable chatbot for WordPress powered by Emmerce Backend.
 
 ## Overview
@@ -17,8 +19,7 @@ The Emmerce Chatbot is a WordPress plugin designed to boost user engagement with
 ## Technology Stack
 
 - **Frontend:** JavaScript - Svelte (managed with Yarn)
-- **Backend:** Django (Python)
-- **Platform:** WordPress (5.0 or higher recommended)
+- **Platform:** WordPress (6.0 or higher recommended)
 - **API Communication:** REST API for data exchange, WebSockets for real-time updates
 
 ## Installation & Setup
@@ -26,9 +27,9 @@ The Emmerce Chatbot is a WordPress plugin designed to boost user engagement with
 ### Prerequisites
 
 Ensure you have the following installed:
-- [Node.js](https://nodejs.org/) (v16+ recommended)
+- [Node.js](https://nodejs.org/) (v22+ recommended)
 - [Yarn](https://yarnpkg.com/)
-- A running WordPress site (v5.0+ recommended)
+- A running WordPress site (v6.0+ recommended)
 
 ### Clone the Repository Development Branch
 

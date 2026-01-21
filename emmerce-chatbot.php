@@ -1,14 +1,13 @@
 <?php
 /**
  * Plugin Name: Emmerce Chatbot
- * Plugin URI: https://emmerce.io
+ * Plugin URI: https://github.com/uzziellite/emmerce-chatbot
  * Description: Adds a professional AI chatbot managed by Emmerce to your website to manage communication between you and your customers. You need to have a valid Emmerce account to use this plugin.
  * Version: 1.0.0
  * Author: Uzziel Lite
  * Author URI: https://github.com/uzziellite
  * Text Domain: emmerce-chatbot
- * Domain Path: /i18n/languages/
- * Requires at least: 4.2
+ * Requires at least: 6.0
  * Tested up to: 6.9
  * License: GNU General Public License v3.0
  * License URI: http://www.gnu.org/licenses/gpl-3.0.html
@@ -67,8 +66,8 @@ final class EmmerceChatBot {
 
     /**
      * Enqueue the chat scripts and styles depending on the mode the user is in
-     * If WP_DEBUG is enabled, it will load the development scripts meaning the dev
-     * server has to be active.
+     * If WP_DEBUG is enabled, it will load the development scripts meaning 
+     * the development server has to be active.
      *
      * @since 1.0.0
      * @return void
@@ -88,10 +87,11 @@ final class EmmerceChatBot {
 
                 add_filter('script_loader_tag', function ($tag, $handle, $src) {
                     if ('emmerce-chatbot-js' === $handle) {
-                        $tag = '<script type="module" src="' . esc_url($src) . '"></script>';
+                        $tag = str_replace('<script ', '<script type="module" ', $tag);
                     }
                     return $tag;
                 }, 10, 3);
+
             } else {
                 $manifest_path = plugin_dir_path(__FILE__) . 'dist/.vite/manifest.json';
                 if (file_exists($manifest_path)) {
@@ -105,13 +105,13 @@ final class EmmerceChatBot {
                             'emmerce-chatbot-js',
                             plugin_dir_url(__FILE__) . 'dist/' . $js_file,
                             array(),
-                            null,
+                            '1.0.0',
                             true
                         );
         
                         add_filter('script_loader_tag', function ($tag, $handle, $src) {
                             if ('emmerce-chatbot-js' === $handle) {
-                                $tag = '<script type="module" defer src="' . esc_url($src) . '"></script>';
+                                $tag = str_replace('<script ', '<script type="module" ', $tag);;
                             }
                             return $tag;
                         }, 10, 3);
@@ -121,7 +121,7 @@ final class EmmerceChatBot {
                                 'emmerce-chatbot-css-' . basename($css_file),
                                 plugin_dir_url(__FILE__) . 'dist/' . $css_file,
                                 array(),
-                                null
+                                '1.0.0'
                             );
 
                             
@@ -195,9 +195,9 @@ final class EmmerceChatBot {
     public static function emmerce_chatbot_settings_page() {
         ?>
         <div class="wrap">
-            <h1><?php _e('Emmerce Chat Settings', 'emmerce-chatbot') ?></h1>
+            <h1><?php esc_html_e('Emmerce Chat Settings', 'emmerce-chatbot') ?></h1>
             <p>
-                <?php _e('Emmerce Chat adds a chat widget to your website to help manage all your website chats together with your conversations from other platforms (Facebook, Whatsapp, Instagram...) from the Emmerce customer portal.', 'emmerce-chatbot') ?>
+                <?php esc_html_e('Emmerce Chat adds a chat widget to your website to help manage all your website chats together with your conversations from other platforms (Facebook, Whatsapp, Instagram...) from the Emmerce customer portal.', 'emmerce-chatbot') ?>
             </p>
             <form method="post" action="options.php">
                 <?php
@@ -251,7 +251,7 @@ final class EmmerceChatBot {
             ?>
             <div class="notice notice-success emmerce">
                 <p>
-                    <?php _e("Emmerce Chatbot is ready!","emmerce-chatbot") ?>
+                    <?php esc_html_e("Emmerce Chatbot is ready!","emmerce-chatbot") ?>
                 </p>
             </div>
             <?php
@@ -259,7 +259,7 @@ final class EmmerceChatBot {
             ?>
             <div class="notice notice-error emmerce">
                 <p>
-                    <?php _e("Please complete your Emmerce Chatbot Configuration","emmerce-chatbot") ?>
+                    <?php esc_html_e("Please complete your Emmerce Chatbot Configuration","emmerce-chatbot") ?>
                 </p>
             </div>
             <?php
@@ -273,7 +273,7 @@ final class EmmerceChatBot {
      * @return void
      */
     public static function emmerce_widget_settings_callback() {
-        echo '<p>'. _e("Configure the chat widget appearance.","emmerce-chatbot") . '</p>';
+        echo '<p>'. esc_html_e("Configure the chat widget appearance.","emmerce-chatbot") . '</p>';
     }
 
     /**
@@ -311,7 +311,7 @@ final class EmmerceChatBot {
      */
     public static function emmerce_chat_client_id_callback() {
         $client_id = esc_attr(get_option('emmerce_chat_client_id'));
-        echo '<input type="number" min="1" name="emmerce_chat_client_id" value="'.$client_id.'" />';
+        echo '<input type="number" min="1" name="emmerce_chat_client_id" value="'. esc_attr($client_id) .'" />';
     }
 
     /**
@@ -336,11 +336,26 @@ final class EmmerceChatBot {
      * @return void
      */
     public static function emmerce_settings_notices() {
-        if (isset($_GET['emmerce_error']) && $_GET['emmerce_error']) {
-            $error_message = sanitize_text_field(urldecode($_GET['emmerce_error']));
-            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($error_message) . '</p></div>';
-        } else if (isset($_GET['emmerce_success']) && $_GET['emmerce_success']) {
-            echo '<div class="notice notice-success is-dismissible"><p>Settings successfully updated.</p></div>';
+        if ( isset( $_GET['_wpnonce'] ) && ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'emmerce_settings_action' ) ) {
+            return;
+        }
+
+        if ( ! empty( $_GET['emmerce_error'] ) ) {
+            $error_message = sanitize_text_field( wp_unslash( $_GET['emmerce_error'] ) );
+            
+            ?>
+            <div class="notice notice-error is-dismissible">
+                <p><?php echo esc_html( $error_message ); ?></p>
+            </div>
+            <?php
+        } 
+
+        else if ( ! empty( $_GET['emmerce_success'] ) ) {
+            ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php esc_html_e( 'Settings successfully updated.', 'emmerce-chatbot' ); ?></p>
+            </div>
+            <?php
         }
     }
 
@@ -395,9 +410,15 @@ final class EmmerceChatBot {
             wp_die();
         }
 
-        $data       = isset($_POST['data']) ? wp_unslash($_POST['data']) : '';
-        $url        = sanitize_url($_POST['url']);
-        $method     = isset($_POST['method']) && in_array(strtoupper($_POST['method']), ['GET', 'POST']) ? strtoupper($_POST['method']) : 'POST';
+        $data = isset( $_POST['data'] ) ? sanitize_text_field( wp_unslash( $_POST['data'] ) ) : '';
+
+        $url = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
+        
+        $raw_method = isset( $_POST['method'] ) ? sanitize_text_field( wp_unslash( $_POST['method'] ) ) : '';
+
+        $upper_method = strtoupper( $raw_method );
+
+        $method = in_array( $upper_method, ['GET', 'POST'], true ) ? $upper_method : 'POST';
 
         $api_response = self::send_message_to_api($api_key, $data, $url, $method);
 
@@ -468,16 +489,9 @@ final class EmmerceChatBot {
      */
     public static function show_wp_debug_warning(){
         if (WP_DEBUG) {
-            echo '<style>
-            .notice-error.emmerce p {
-                font-weight: bold;
-                font-size: 16px;
-            }
-            </style>';
-
             ?>
             <div class="notice notice-error emmerce">
-                <p><?php _e('Please set your WP_DEBUG to false in your wp-config.php file to use the Emmerce Chatbot.', 'emmerce-chatbot'); ?></p>
+                <p><?php esc_html_e('Please set your WP_DEBUG to false in your wp-config.php file to use the Emmerce Chatbot.', 'emmerce-chatbot'); ?></p>
             </div>
             <?php
 
@@ -572,9 +586,12 @@ final class EmmerceChatBot {
      */
     public static function emmerce_handle_rest_authentication_errors($result) {
         // If there's already an authentication error, and we're on our endpoint, clear it
-        if (!empty($result) && !empty($_SERVER['REQUEST_URI'])) {
-            if (strpos($_SERVER['REQUEST_URI'], '/emmerce/v1/internal/api-key') !== false) {
-                return true; // Allow the request to proceed to permission_callback
+        if ( ! empty( $result ) && ! empty( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) ) ) {
+            
+            $request_uri = esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) );
+
+            if ( strpos( $request_uri, '/emmerce/v1/internal/api-key' ) !== false ) {
+                return true; 
             }
         }
         return $result;
