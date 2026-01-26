@@ -30,8 +30,6 @@ final class EmmerceChatBot {
         'https://demoinfinity.emmerce.io',
         'https://infinity.emmerce.co.ke',
         'https://chat-proxy.emmerce.io',
-        'https://chat-proxy.emmerce.co.ke',
-        'https://172.105.52.89',
         'http://localhost',
         'http://127.0.0.1',
     ];
@@ -40,8 +38,6 @@ final class EmmerceChatBot {
         'demoinfinity.emmerce.io',
         'infinity.emmerce.co.ke',
         'chat-proxy.emmerce.io',
-        'chat-proxy.emmerce.co.ke',
-        '172.105.52.89',
         'localhost',
         '127.0.0.1',
     ];
@@ -145,11 +141,11 @@ final class EmmerceChatBot {
                     'snapSound'     => plugin_dir_url(__FILE__). 'src/media/snap.mp3',
                     'popSound'      => plugin_dir_url(__FILE__). 'src/media/pop.mp3',
                     'clientId'      => esc_attr(get_option('emmerce_chat_client_id')),
-                    'accessUrl'     => WP_DEBUG ? 'http://127.0.0.1:8080' : 'https://172.105.52.89:8080',
+                    'accessUrl'     => WP_DEBUG ? 'http://127.0.0.1:8080' : 'https://chat-proxy.emmerce.io',
                     'nonce'         => $chat_nonce,
                     'wsNonce'       => $ws_nonce,
                     'businessName'  => get_bloginfo('name'),
-                    'ws'            => WP_DEBUG ? 'ws://127.0.0.1:8080' : 'wss://172.105.52.89:8080'
+                    'ws'            => WP_DEBUG ? 'ws://127.0.0.1:8080' : 'wss://chat-proxy.emmerce.io'
                 ]
             );
         }
