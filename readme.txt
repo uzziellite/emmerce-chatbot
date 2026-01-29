@@ -53,10 +53,18 @@ Yes! The plugin is built to be extensible, and developers can modify it using Sv
 
 == Changelog ==
 
+= 1.0.1 =
+* Fixed CSS queuing for proper stylesheet loading.
+* Resolved variable initialization order that was causing rendering errors.
+* Improved WebSocket connection management for better stability.
+
 = 1.0.0 =
 * Initial release of Emmerce Chatbot.
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Bug fix release. Addresses CSS loading issues, rendering errors, and WebSocket stability. Update recommended for all users.
 
 = 1.0.0 =
 This is the first version of the plugin. No upgrades available yet.
