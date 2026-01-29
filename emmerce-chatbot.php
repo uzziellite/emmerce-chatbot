@@ -32,12 +32,6 @@ final class EmmerceChatBot {
         'https://chat-proxy.emmerce.io'
     ];
 
-    private static $allowed_hosts = [
-        'demoinfinity.emmerce.io',
-        'infinity.emmerce.co.ke',
-        'chat-proxy.emmerce.io'
-    ];
-
     /**
      * Setup the chatbot
      *
