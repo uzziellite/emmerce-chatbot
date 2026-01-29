@@ -91,7 +91,7 @@ final class EmmerceChatBot {
                             'emmerce-chatbot-js',
                             plugin_dir_url(__FILE__) . 'dist/' . $js_file,
                             array(),
-                            '1.0.0',
+                            '1.0.1',
                             true
                         );
         
@@ -107,7 +107,7 @@ final class EmmerceChatBot {
                                 'emmerce-chatbot-css-' . basename($css_file),
                                 plugin_dir_url(__FILE__) . 'dist/' . $css_file,
                                 array(),
-                                '1.0.0'
+                                '1.0.1'
                             );
 
                             
@@ -311,7 +311,7 @@ final class EmmerceChatBot {
             'emmerce-chatbot-admin-css',
             plugin_dir_url(__FILE__) . 'src/admin-style.css',
             array(),
-            '1.0.0'
+            '1.0.1'
         );
     }
 
@@ -513,7 +513,7 @@ final class EmmerceChatBot {
      *
      * @return WP_Error|true WP_Error if the nonce is invalid, true otherwise.
      *
-     * @since 1.0.0
+     * @since 1.0.1
      */
     public static function emmerce_verify_origin($request) {
         
