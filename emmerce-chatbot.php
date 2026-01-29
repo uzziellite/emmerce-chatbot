@@ -48,6 +48,20 @@ final class EmmerceChatBot {
         add_action('admin_notices', [__CLASS__, 'show_wp_debug_warning']);
         add_action('rest_api_init', [__CLASS__, 'emmerce_register_rest_endpoints']);
         add_filter('rest_authentication_errors', [__CLASS__, 'emmerce_handle_rest_authentication_errors']);
+        add_filter( 'plugin_action_links_' . plugin_basename(__FILE__), [__CLASS__, 'plugin_settings_link'] );   
+    }
+
+    /**
+     * Add plugin settings link to the admin
+     * 
+     * @since 1.0.1
+     * @return void
+     */
+    public static function plugin_settings_link( $links ) {
+        $settings_url = admin_url( 'admin.php?page=emmerce-chatbot-settings' );
+        $settings_link = '<a href="' . esc_url( $settings_url ) . '">' . __( 'Settings', 'emmerce-chatbot' ) . '</a>';
+        array_unshift( $links, $settings_link );
+        return $links;
     }
 
     /**
