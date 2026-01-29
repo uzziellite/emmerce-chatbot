@@ -376,6 +376,8 @@
       chatButtonColor = chatSettings?.website_color
       chatButtonHover = chatSettings?.website_color
       chatButtonPingColor = chatSettings?.website_color
+
+      console.log('Loaded options are: ', chatSettings, 'and url called is: ', `${emmerceChatbot.accessUrl}/start/${clientId}?mode=${emmerceChatbot.debugMode}`);
     } catch (error) {
       console.error('Error:', error);
     }
