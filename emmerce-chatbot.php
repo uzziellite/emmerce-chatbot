@@ -59,7 +59,7 @@ final class EmmerceChatBot {
      */
     public static function plugin_settings_link( $links ) {
         $settings_url = admin_url( 'admin.php?page=emmerce-chatbot-settings' );
-        $settings_link = '<a href="' . esc_url( $settings_url ) . '">' . __( 'Settings', 'emmerce-chatbot' ) . '</a>';
+        $settings_link = '<a href="' . esc_url( $settings_url ) . '">' . __( 'Configure', 'emmerce-chatbot' ) . '</a>';
         array_unshift( $links, $settings_link );
         return $links;
     }
