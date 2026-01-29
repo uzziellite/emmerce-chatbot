@@ -523,12 +523,14 @@ final class EmmerceChatBot {
      */
     public static function emmerce_verify_origin($request) {
         
-        $origin = $request->get_header('host');
+        $current_route = $request->get_route();
 
-        if (!in_array($origin, self::$allowed_hosts)) {
+        $required_path = '/emmerce/v1/internal/api-key';
+
+        if ($current_route !== $required_path) {
             return new WP_Error(
                 'rest_forbidden', 
-                'URL destination is not allowed.', 
+                'Invalid endpoint access.', 
                 array('status' => 403)
             );
         }
