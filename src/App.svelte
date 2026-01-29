@@ -250,7 +250,7 @@
     try {
       const apiResponse = await sendRequestToApi(endpoint, `${emmerceChatbot.accessUrl}/message/${clientId}?mode=${emmerceChatbot.debugMode}`, nonce, 'POST', params);
 
-      console.log(`${emmerceChatbot.accessUrl}/waba/send-website-message/${clientId}/`);
+      //console.log(`${emmerceChatbot.accessUrl}/waba/send-website-message/${clientId}/`);
       
       if(apiResponse.data?.status === "sent"){
         isSending = false;
@@ -357,13 +357,13 @@
       return;
     }
 
-    console.log('Setting env variables');
+    //console.log('Setting env variables');
     nonce = emmerceChatbot.nonce;
     clientId = emmerceChatbot.clientId;
     position = emmerceChatbot.position;
     endpoint = emmerceChatbot.ajaxurl;
     isOpen = emmerceChatbot.isOpen || false;
-    console.log('Variables set:', { nonce, clientId, position, endpoint, isOpen });
+    //console.log('Variables set:', { nonce, clientId, position, endpoint, isOpen });
 
     /**
      * Fetch Chat Settings
@@ -377,7 +377,7 @@
       chatButtonHover = chatSettings?.website_color
       chatButtonPingColor = chatSettings?.website_color
 
-      console.log('Loaded options are: ', chatSettings, 'and url called is: ', `${emmerceChatbot.accessUrl}/start/${clientId}?mode=${emmerceChatbot.debugMode}`);
+      //console.log('Loaded options are: ', chatSettings, 'and url called is: ', `${emmerceChatbot.accessUrl}/start/${clientId}?mode=${emmerceChatbot.debugMode}`);
     } catch (error) {
       console.error('Error:', error);
     }
