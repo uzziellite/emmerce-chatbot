@@ -3,7 +3,7 @@ Contributors: uzziellite
 Tags: chatbot, ai, customer support, automation, emmerce
 Requires at least: 6.0
 Tested up to: 6.9
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GNU General Public License v3.0
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 Text Domain: emmerce-chatbot
