@@ -3,7 +3,7 @@
  * Plugin Name: Emmerce Chatbot
  * Plugin URI: https://github.com/uzziellite/emmerce-chatbot
  * Description: Adds a professional AI chatbot managed by Emmerce to your website to manage communication between you and your customers. You need to have a valid Emmerce account to use this plugin.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Uzziel Lite
  * Author URI: https://github.com/uzziellite
  * Text Domain: emmerce-chatbot
@@ -105,7 +105,7 @@ final class EmmerceChatBot {
                             'emmerce-chatbot-js',
                             plugin_dir_url(__FILE__) . 'dist/' . $js_file,
                             array(),
-                            '1.0.1',
+                            '1.0.2',
                             true
                         );
         
@@ -121,7 +121,7 @@ final class EmmerceChatBot {
                                 'emmerce-chatbot-css-' . basename($css_file),
                                 plugin_dir_url(__FILE__) . 'dist/' . $css_file,
                                 array(),
-                                '1.0.1'
+                                '1.0.2'
                             );
 
                             
@@ -325,7 +325,7 @@ final class EmmerceChatBot {
             'emmerce-chatbot-admin-css',
             plugin_dir_url(__FILE__) . 'src/admin-style.css',
             array(),
-            '1.0.1'
+            '1.0.2'
         );
     }
 
